@@ -55,7 +55,9 @@ void Array<T>::write(T value)
 		std::copy(data, data + capacity_, larger);
 		delete[] data;
 		data = larger;
+		capacity_ = newCapacity;
 	}
+	CL_ASSERT(count_ <= capacity_);
 	data[count_] = value;
 	++count_;
 }
@@ -72,6 +74,7 @@ void Array<T>::free()
 template <typename T>
 const T& Array<T>::operator[](int32_t index) const
 {
+	CL_ASSERT(count_ <= capacity_);
 	CL_ASSERT(index >= 0 && index < count_);
 	return data[index];
 }
