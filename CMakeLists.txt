@@ -9,13 +9,23 @@ if (CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_CONFIGURATION_TYPES "Debug;RelWithDebInfo;Release" CACHE STRING "" FORCE)
 endif (CMAKE_CONFIGURATION_TYPES)
 
+set(PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+
+###############################################################################
+# Libraries and Executables
+###############################################################################
+
+add_subdirectory(src)
+
+###############################################################################
+# Testing
+###############################################################################
+
 # Use a vendored version of GoogleTest to provide everything out of the box.
 add_subdirectory(vendor/googletest-1.14.0)
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
 add_subdirectory(tests)
-
-add_executable(cxxlox main.cpp)
 
 # Provides a command to run all tests, since CLion can't do that on it's own.
 # https://stackoverflow.com/questions/733475/cmake-ctest-make-test-doesnt-build-tests#736838
