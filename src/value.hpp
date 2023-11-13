@@ -6,4 +6,6 @@ namespace cxxlox {
 
 using Value = double;
 
+void printValue(Value v);
+
 }

@@ -5,3 +5,6 @@
 #include <cstdint>
 
 #define CL_ASSERT(expr) assert(expr)
+#define CL_UNUSED(expr) (void)(expr)
+
+#define DEBUG_TRACE_EXECUTION

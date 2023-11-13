@@ -16,11 +16,6 @@ void disassembleChunk(const Chunk& chunk, const char* name)
 	}
 }
 
-static void printValue(Value v)
-{
-	std::cout << v;
-}
-
 /// Print a simple instruction and move to the next byte offset.
 [[nodiscard]] static int32_t simpleInstruction(const char* name, int32_t offset)
 {
