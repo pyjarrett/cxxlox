@@ -37,12 +37,18 @@ Value VM::readConstant()
 
 void VM::push(const Value value)
 {
+	// Check for stack overflow.
+	// https://devblogs.microsoft.com/oldnewthing/20170927-00/?p=97095
+	CL_ASSERT(reinterpret_cast<uintptr_t>(stackTop) < reinterpret_cast<uintptr_t>(stack + kStackMax));
+
 	*stackTop = value;
 	++stackTop;
 }
 
 Value VM::pop()
 {
+	// Check for stack underflow.
+	CL_ASSERT(stackTop != stack);
 	--stackTop;
 	return *stackTop;
 }
@@ -75,6 +81,33 @@ static InterpretResult run() {
 				printValue(vm.pop());
 				std::cout << '\n';
 				return InterpretResult::Ok;
+			case OP_ADD: {
+				const auto right = vm.pop();
+				const auto left = vm.pop();
+				vm.push(left + right);
+				break;
+			}
+			case OP_SUBTRACT: {
+				const auto right = vm.pop();
+				const auto left = vm.pop();
+				vm.push(left - right);
+				break;
+			};
+			case OP_MULTIPLY: {
+				const auto right = vm.pop();
+				const auto left = vm.pop();
+				vm.push(left * right);
+				break;
+			}
+			case OP_DIVIDE: {
+				const auto right = vm.pop();
+				const auto left = vm.pop();
+				vm.push(left / right);
+				break;
+			}
+			case OP_NEGATE:
+				vm.push(-vm.pop());
+				break;
 			case OP_CONSTANT:
 				vm.push(vm.readConstant());
 				break;
