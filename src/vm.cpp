@@ -14,15 +14,37 @@ namespace cxxlox {
 /// Global VM, to prevent from needing to pass one to every function call.
 VM vm;
 
+VM::VM()
+{
+	resetStack();
+}
+
+void VM::resetStack()
+{
+	stackTop = &stack[0];
+}
+
 uint8_t VM::readByte()
 {
-	return *vm.ip++;
+	return *ip++;
 }
 
 Value VM::readConstant()
 {
-	CL_ASSERT(vm.chunk);
-	return vm.chunk->constants[readByte()];
+	CL_ASSERT(chunk);
+	return chunk->constants[readByte()];
+}
+
+void VM::push(const Value value)
+{
+	*stackTop = value;
+	++stackTop;
+}
+
+Value VM::pop()
+{
+	--stackTop;
+	return *stackTop;
 }
 
 void initVM() {}
@@ -32,6 +54,13 @@ static InterpretResult run() {
 	while(true) {
 #ifdef DEBUG_TRACE_EXECUTION
 		{
+			std::cout << "        ";
+			for (Value* slot = vm.stack; slot != vm.stackTop; ++slot) {
+				std::cout << '[';
+				printValue(*slot);
+				std::cout << ']';
+			}
+			std::cout << '\n';
 			const auto offset = std::distance(&vm.chunk->code[0], vm.ip);
 			CL_UNUSED(disassembleInstruction(*vm.chunk, offset));
 		}
@@ -43,11 +72,11 @@ static InterpretResult run() {
 			case OP_RETURN:
 				// for now, end execution -- this will be replaced with returning
 				// a value from a function.
+				printValue(vm.pop());
+				std::cout << '\n';
 				return InterpretResult::Ok;
 			case OP_CONSTANT:
-				// TODO: Temp code for printing.
-				printValue(vm.readConstant());
-				std::cout << '\n';
+				vm.push(vm.readConstant());
 				break;
 			default:
 				// This shouldn't be reachable.
