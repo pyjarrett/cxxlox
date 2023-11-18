@@ -1,5 +1,6 @@
 set(CXXLOX_SRCS
     main.cpp
+    cli.cpp
     chunk.cpp
     debug.cpp
     value.cpp
@@ -7,6 +8,7 @@ set(CXXLOX_SRCS
 )
 set(CXXLOX_HEADERS
     array.hpp
+    cli.hpp
     chunk.hpp
     common.hpp
     debug.hpp

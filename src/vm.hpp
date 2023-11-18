@@ -3,6 +3,8 @@
 #include "common.hpp"
 #include "value.hpp"
 
+#include <string> qwq
+
 namespace cxxlox {
 
 struct Chunk;
@@ -44,6 +46,6 @@ enum class InterpretResult
 	RuntimeError,
 };
 
-InterpretResult interpret(Chunk* chunk);
+InterpretResult interpret(const std::string& source);
 
 } // namespace cxxlox
