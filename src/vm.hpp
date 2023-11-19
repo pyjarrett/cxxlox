@@ -46,6 +46,6 @@ enum class InterpretResult
 	RuntimeError,
 };
 
-InterpretResult interpret(const std::string& source);
+[[nodiscard]] InterpretResult interpret(const std::string& source);
 
 } // namespace cxxlox

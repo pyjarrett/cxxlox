@@ -12,7 +12,6 @@ namespace cxxlox {
 
 InterpretResult interpret(const std::string& line)
 {
-
 	return InterpretResult::Ok;
 }
 
