@@ -3,6 +3,7 @@
 #include "scanner.hpp"
 
 #include <iostream>
+#include <format>
 
 namespace cxxlox {
 
@@ -30,8 +31,15 @@ void compile(const std::string& source)
 		}
 
 		// Print the token type and lexeme.
+		std::string_view view(token.start, token.length);
+
+		// FIXME: Does this work for non-null-terminated string_views?
+		std::cout << std::format("{:2} {}", static_cast<int>(token.type), view) << '\n';
 
 		// Stop if we reached an end of file token.
+		if (token.type == TokenType::Eof) {
+			break;
+		}
 	}
 }
 

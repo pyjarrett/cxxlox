@@ -51,6 +51,7 @@ enum class TokenType
 	Else,
 	While,
 	For,
+	Return,
 
 	Class,
 	Fun,

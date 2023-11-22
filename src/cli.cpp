@@ -10,11 +10,6 @@
 
 namespace cxxlox {
 
-InterpretResult interpret(const std::string& line)
-{
-	return InterpretResult::Ok;
-}
-
 void repl()
 {
 	std::cout << "Lox REPL.  'exit' or 'quit' to stop.\n";
