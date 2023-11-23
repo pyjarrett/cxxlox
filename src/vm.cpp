@@ -5,8 +5,10 @@
 #include "compiler.hpp"
 
 #ifdef DEBUG_TRACE_EXECUTION
-#include "debug.hpp"
+	#include "debug.hpp"
 #endif
+
+#include "chunk.hpp"
 
 #include <iostream>
 
@@ -122,12 +124,16 @@ static InterpretResult run() {
 
 InterpretResult interpret(const std::string& source)
 {
-	compile(source);
-	return InterpretResult::Ok;
-//	CL_ASSERT(chunk != nullptr);
-//	vm.chunk = chunk;
-//	vm.ip = &vm.chunk->code[0];
-//	return run();
+	Chunk chunk;
+
+	if (!compile(source, &chunk)) {
+		return InterpretResult::CompileError;
+	}
+
+	vm.chunk = &chunk;
+	vm.ip = &vm.chunk->code[0];
+
+	return run();
 }
 
 } // namespace cxxlox

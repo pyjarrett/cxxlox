@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string_view>
+
 namespace cxxlox {
 
 struct Scanner {
@@ -70,15 +72,19 @@ enum class TokenType
 /// A small, value-based type to pass around which can be consumed by the parse
 /// as an atomic element within the parsing process.
 struct Token {
-	TokenType type;
+	TokenType type = TokenType::Eof;
 
 	// Lexeme
 	// TODO: This looks exactly like a `string_view`.
-	const char* start;
-	size_t length;
+	const char* start = nullptr;
+	size_t length = 0;
 
 	// Line number where this appears.
-	int line;
+	int line = 0;
+
+	[[nodiscard]] std::string_view view() const {
+		return std::string_view(start, length);
+	}
 };
 
 void initScanner(const char* source);

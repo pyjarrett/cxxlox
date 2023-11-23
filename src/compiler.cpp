@@ -1,46 +1,364 @@
 #include "compiler.hpp"
 
+#include "chunk.hpp"
 #include "scanner.hpp"
 
-#include <iostream>
+#ifdef DEBUG_PRINT_CODE
+#include "debug.hpp"
+#endif
+
+#include <cassert>
 #include <format>
+#include <iostream>
 
 namespace cxxlox {
 
-void compile(const std::string& source)
+struct Parser {
+	Token current;
+	Token previous;
+
+	bool hadError = false;
+
+	// Flag to set on parser error to allow it to resync without blasting out
+	// innumerable errors while finding a synchronization point.
+	bool panicMode = false;
+};
+
+// Use enum value auto-incrementing to decide precedence levels.
+enum Precedence {
+	PREC_NONE,
+	PREC_ASSIGNMENT, // =
+	PREC_OR,         // or
+	PREC_AND,        // and
+	PREC_EQUALITY,   // ==
+	PREC_COMPARISON, // < > <= >=
+	PREC_TERM,       // + -
+	PREC_FACTOR,     // * /
+	PREC_UNARY,      // ! -
+	PREC_CALL,       // . ()
+	PREC_PRIMARY
+};
+
+// We (sadly) maintain inner state in this module, so all parse functions are
+// just plain functions with no parameters because of the global state... :(
+using ParseFn = void(*)();
+
+// Pratt parsing rule.
+struct ParseRule {
+	// Function to use when encountering the key's token type as a prefix.
+	ParseFn prefix;
+
+	// Function to use when encountering the key's token type as a infix operator.
+	ParseFn infix;
+
+	Precedence precedence;
+};
+
+static Parser parser;
+static Chunk* compilingChunk;
+
+// C++ doesn't have C99 array designated initializers.  Emulate this.  This also
+// hides that TokenType can't be directly converted to an index without a cast.
+struct PrattRuleMap {
+	struct PrattRuleRow {
+		TokenType type;
+		ParseRule rule;
+	};
+
+	PrattRuleMap(std::initializer_list<PrattRuleRow> items) {
+		rules_ = new ParseRule[items.size()];
+
+		// Require the rules to be in order.  This also ensures that every token
+		// type gets covered and none forgotten.
+		int nextRuleIndex = 0;
+		for (const auto& row : items) {
+			const int index = static_cast<int>(row.type);
+			CL_ASSERT(index == nextRuleIndex);
+			++nextRuleIndex;
+			rules_[index] = row.rule;
+		}
+	}
+
+	~PrattRuleMap() {
+		delete[] rules_;
+	}
+
+	PrattRuleMap(const PrattRuleMap&) = delete;
+	PrattRuleMap& operator=(const PrattRuleMap&) = delete;
+
+	PrattRuleMap(PrattRuleMap&&) = delete;
+	PrattRuleMap& operator=(PrattRuleMap&&) = delete;
+
+	const ParseRule* operator[](TokenType token) const {
+		return &rules_[static_cast<int>(token)];
+	}
+
+private:
+	ParseRule* rules_ = nullptr;
+};
+
+static void expression();
+static const ParseRule* getRule(TokenType type);
+static void parsePrecedence(Precedence precedence);
+
+static void errorAt(const Token& token, const char* message)
 {
-	// FIXME: This is very unsafe.
-	// Maybe something with iterators over a string might be better?
-	initScanner(source.data());
+	// Don't emit more errors if the parser is already in a panic state.
+	if (parser.panicMode) {
+		return;
+	}
+	parser.panicMode = true;
+	std::cerr << std::format("[line {}] Error", token.line);
 
-	// TODO: This is temporary code to drive the scanner.
+	if (token.type == TokenType::Eof) {
+		std::cerr << " at the end.\n";
+	} else if (token.type == TokenType::Error) {
+		// some sort of error token...
+	} else {
+		std::cerr << " at " << token.view() << '\n';
+	}
 
-	int previousLine = 0;
-	while (true)
-	{
-		// Get next token
-		Token token = scanToken();
+	std::cerr << ": " << message << '\n';
 
-		// Print next token with line number or a | for a continuation.
-		if (token.line == previousLine) {
-			std::cout << "  | ";
-		}
-		else {
-			std::cout << token.line;
-			previousLine = token.line;
-		}
+	parser.hadError = true;
+}
 
-		// Print the token type and lexeme.
-		std::string_view view(token.start, token.length);
+static void errorAtCurrent(const char* message)
+{
+	errorAt(parser.current, message);
+}
 
-		// FIXME: Does this work for non-null-terminated string_views?
-		std::cout << std::format("{:2} {}", static_cast<int>(token.type), view) << '\n';
+static void error(const char* message)
+{
+	errorAt(parser.previous, message);
+}
 
-		// Stop if we reached an end of file token.
-		if (token.type == TokenType::Eof) {
+static void advance()
+{
+	parser.previous = parser.current;
+
+	// Skip through error tokens until we arrive at a good point.
+	while (true) {
+		parser.current = scanToken();
+		if (parser.current.type != TokenType::Error) {
 			break;
 		}
+
+		errorAtCurrent(parser.current.start);
 	}
 }
 
+static void parsePrecedence(Precedence precedence)
+{
+	// Read the token for the rule we want to act on.
+	advance();
+	ParseFn prefixRule = getRule(parser.previous.type)->prefix;
+	if (!prefixRule) {
+		error ("Expected an expression.");
+		return;
+	}
+	prefixRule();
+
+	while (precedence <= getRule(parser.current.type)->precedence) {
+		advance();
+		ParseFn infixRule = getRule(parser.previous.type)->infix;
+		infixRule();
+	}
 }
+
+// Expect the next token to be a given type, move along if it is, otherwise
+// emit an error message.
+static void consume(TokenType type, const char* message)
+{
+	if (parser.current.type == type) {
+		advance();
+		return;
+	}
+
+	errorAtCurrent(message);
+}
+
+[[nodiscard]] Chunk* currentChunk()
+{
+	return compilingChunk;
+}
+
+static void emitByte(uint8_t byte)
+{
+	currentChunk()->write(byte, parser.previous.line);
+}
+
+static void emitBytes(uint8_t byte1, uint8_t byte2)
+{
+	emitByte(byte1);
+	emitByte(byte2);
+}
+
+[[nodiscard]] static uint8_t makeConstant(Value value)
+{
+	const int constant = currentChunk()->addConstant(value);
+	if (constant > std::numeric_limits<uint8_t>::max()) {
+		error("Too many constants in one chunk.");
+	}
+	return static_cast<uint8_t>(constant);
+}
+
+static void emitConstant(Value value)
+{
+	emitBytes(OP_CONSTANT, makeConstant(value));
+}
+
+static void emitReturn()
+{
+	emitByte(OP_RETURN);
+}
+
+static void endCompiling()
+{
+	emitReturn();
+#ifdef DEBUG_PRINT_CODE
+	if (!parser.hadError) {
+		disassembleChunk(*currentChunk(), "code");
+	}
+#endif
+}
+
+static void binary() {
+	const TokenType operatorType = parser.previous.type;
+	const ParseRule* rule = getRule(operatorType);
+	// Parse the next level up, since all our binary rules are left associative.
+	// This would be different if right-associative operators were handled, and
+	// we would use the same level of precedence again here.
+	parsePrecedence(Precedence(rule->precedence + 1));
+	switch(operatorType) {
+		case TokenType::Plus: emitByte(OP_ADD); break;
+		case TokenType::Minus: emitByte(OP_SUBTRACT); break;
+		case TokenType::Star: emitByte(OP_MULTIPLY); break;
+		case TokenType::Slash: emitByte(OP_DIVIDE); break;
+		default:
+			CL_ASSERT(false); // Unknown operator type.
+	}
+
+
+}
+
+static void expression()
+{
+	parsePrecedence(PREC_ASSIGNMENT);
+}
+
+// Grouping expression like "(expr)".  Assumes the leading "(" has already been
+// encountered.
+static void grouping()
+{
+	expression();
+	consume(TokenType::RightParen, "Expected ')' after expression.");
+}
+
+static void unary()
+{
+	const TokenType operatorType = parser.previous.type;
+
+	// Compile the expression the unary applies to.
+	parsePrecedence(PREC_UNARY);
+
+	// Emit the operation AFTER the expression, since the expression should be
+	// below this operand to have it applied to that expression's result.
+	switch (operatorType) {
+		case TokenType::Minus:
+			emitByte(OP_NEGATE);
+			break;
+		default:
+			CL_ASSERT(false);
+	}
+}
+
+static void number()
+{
+	double value;
+	const auto result = std::from_chars(parser.previous.start, parser.previous.start + parser.previous.length, value);
+
+	if (result.ec != std::errc {}) {
+		CL_ASSERT(false); // Invalid conversion.
+		value = 0.0;
+	}
+	emitConstant(value);
+}
+
+// clang format off
+static PrattRuleMap rules = {
+	{TokenType::LeftParen, {grouping, nullptr, PREC_NONE}},
+	{TokenType::RightParen, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::LeftBrace, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::RightBrace, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Comma, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Dot, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Semicolon, {nullptr, nullptr, PREC_NONE}},
+
+	{TokenType::Plus, {nullptr, binary, PREC_TERM}},
+	{TokenType::Minus, {unary, binary, PREC_TERM}},
+	{TokenType::Star, {nullptr, binary, PREC_FACTOR}},
+	{TokenType::Slash, {nullptr, binary, PREC_FACTOR}},
+
+	{TokenType::Bang, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::BangEqual, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Equal, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::EqualEqual, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Less, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::LessEqual, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Greater, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::GreaterEqual, {nullptr, nullptr, PREC_NONE}},
+
+	{TokenType::Identifier, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::String, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Number, {number, nullptr, PREC_NONE}},
+
+	{TokenType::And, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Or, {nullptr, nullptr, PREC_NONE}},
+
+	{TokenType::If, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Else, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::While, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::For, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Return, {nullptr, nullptr, PREC_NONE}},
+
+	{TokenType::Class, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Fun, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Print, {nullptr, nullptr, PREC_NONE}},
+
+	{TokenType::Super, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::This, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Nil, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::True, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::False, {nullptr, nullptr, PREC_NONE}},
+
+	{TokenType::Error, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Eof, {nullptr, nullptr, PREC_NONE}},
+};
+// clang format on
+
+static const ParseRule* getRule(TokenType type) {
+	// Just use an unordered map since I don't want to
+	return rules[type];
+}
+
+bool compile(const std::string& source, Chunk* chunk)
+{
+	CL_ASSERT(chunk);
+
+	// FIXME: This is very unsafe.
+	// Maybe something with iterators over a string might be better?
+	initScanner(source.data());
+	compilingChunk = chunk;
+
+	// Reset the parser.
+	parser = {};
+
+	advance();
+	expression();
+	consume(TokenType::Eof, "Expected end of expression.");
+	endCompiling();
+	return !parser.hadError;
+}
+
+} // namespace cxxlox

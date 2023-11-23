@@ -28,7 +28,7 @@ void repl()
 		}
 
 		// Evaluate
-		interpret(line);
+		CL_UNUSED(interpret(line));
 	}
 }
 
