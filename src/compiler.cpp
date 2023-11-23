@@ -382,7 +382,6 @@ static PrattRuleMap rules = {
 
 static const ParseRule* getRule(TokenType type)
 {
-	// Just use an unordered map since I don't want to
 	return rules[type];
 }
 
