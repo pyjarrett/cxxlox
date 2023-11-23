@@ -73,11 +73,6 @@ Value VM::peek(int distance) const
 	return stackTop[-1 - distance];
 }
 
-void initVM()
-{}
-void freeVM()
-{}
-
 // I don't like the lambda here, but I'm just trying to do this without macros.
 // I will probably regret this decision later, due to the likely overhead of the
 // lambda call (if they're not inlined out... is that possible?).

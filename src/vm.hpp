@@ -40,9 +40,6 @@ struct VM {
 	void runtimeError(const std::string& message);
 };
 
-void initVM();
-void freeVM();
-
 enum class InterpretResult
 {
 	Ok,
