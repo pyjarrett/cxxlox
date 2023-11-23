@@ -33,8 +33,8 @@ void VM::runtimeError(const std::string& message)
 	std::cerr << message << '\n';
 
 	// ip points to the NEXT instruction to subtract an extra 1.
-	const size_t instruction = reinterpret_cast<uintptr_t>(ip) - reinterpret_cast<uintptr_t>(&vm.chunk->code[0]) - 1;
-	const int line = vm.chunk->lines[instruction];
+	const uintptr_t instruction = reinterpret_cast<uintptr_t>(ip) - reinterpret_cast<uintptr_t>(&vm.chunk->code[0]) - 1;
+	const int line = vm.chunk->lines[int(instruction)];
 
 	std::cerr << std::format("[line {}] in script\n", line);
 }
@@ -106,7 +106,7 @@ static InterpretResult run()
 				std::cout << ']';
 			}
 			std::cout << '\n';
-			const auto offset = std::distance(&vm.chunk->code[0], vm.ip);
+			const auto offset = int32_t(std::distance(&vm.chunk->code[0], vm.ip));
 			CL_UNUSED(disassembleInstruction(*vm.chunk, offset));
 		}
 #endif
@@ -120,30 +120,26 @@ static InterpretResult run()
 				printValue(vm.pop());
 				std::cout << '\n';
 				return InterpretResult::Ok;
-			case OP_ADD: {
+			case OP_ADD:
 				if (!binaryOp([](auto a, auto b) { return a + b; })) {
 					return InterpretResult::RuntimeError;
 				}
 				break;
-			}
-			case OP_SUBTRACT: {
+			case OP_SUBTRACT:
 				if (!binaryOp([](auto a, auto b) { return a - b; })) {
 					return InterpretResult::RuntimeError;
 				}
 				break;
-			};
-			case OP_MULTIPLY: {
+			case OP_MULTIPLY:
 				if (!binaryOp([](auto a, auto b) { return a * b; })) {
 					return InterpretResult::RuntimeError;
 				}
 				break;
-			}
-			case OP_DIVIDE: {
+			case OP_DIVIDE:
 				if (!binaryOp([](auto a, auto b) { return a / b; })) {
 					return InterpretResult::RuntimeError;
 				}
 				break;
-			}
 			case OP_NOT:
 				vm.push(Value::makeBool(isFalsey(vm.pop())));
 				break;

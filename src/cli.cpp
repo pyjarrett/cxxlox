@@ -45,7 +45,7 @@ void repl()
 	}
 
 	const auto numBytes = file.tellg();
-	out.reserve(numBytes);
+	out.reserve(size_t(numBytes));
 	out.assign(std::istream_iterator<char>(file), std::istream_iterator<char>());
 	return true;
 }
@@ -69,8 +69,6 @@ void runFile(const char* fileName)
 
 int runMain(int argc, char** argv)
 {
-	initVM();
-
 	// Running as a REPL, since the first arg is this program's name.
 	if (argc == 1) {
 		repl();
@@ -81,8 +79,6 @@ int runMain(int argc, char** argv)
 		std::cout << "Usage: cxxlox [filename]\n";
 		return ExitCodeBadUsage;
 	}
-
-	freeVM();
 
 	return ExitCodeOk;
 }

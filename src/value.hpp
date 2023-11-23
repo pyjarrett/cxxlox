@@ -72,7 +72,6 @@ struct Value {
 			default:
 				CL_FATAL("Unknown value type.");
 		}
-		return false;
 	}
 };
 

@@ -54,9 +54,9 @@ static char advance()
 	return true;
 }
 
-[[nodiscard]] static uintptr_t currentLexemeSize()
+[[nodiscard]] static int64_t currentLexemeSize()
 {
-	return reinterpret_cast<uintptr_t>(scanner.current) - reinterpret_cast<uintptr_t>(scanner.start);
+	return std::distance(scanner.start, scanner.current);
 }
 
 static void skipWhitespace()

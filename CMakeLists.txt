@@ -12,19 +12,32 @@ endif (CMAKE_CONFIGURATION_TYPES)
 set(PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
 ###############################################################################
-# Libraries and Executables
-###############################################################################
-
-add_subdirectory(src)
-
-###############################################################################
-# Testing
+# External libraries
 ###############################################################################
 
 # Use a vendored version of GoogleTest to provide everything out of the box.
 add_subdirectory(vendor/googletest-1.14.0)
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
+###############################################################################
+# Configuration
+###############################################################################
+if (MSVC)
+    message(STATUS "Using visual studio")
+
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")      # Enable parallel build
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Wall")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4820")  # Disable implicit padding warning.
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4061")  # Disable explicit enum switch handling warning.
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd5045")  # Disable explicit enum switch handling warning.
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qspectre")  # Spectre mitigations
+endif()
+
+###############################################################################
+# Libraries and Executables
+###############################################################################
+
+add_subdirectory(src)
 add_subdirectory(tests)
 
 # Provides a command to run all tests, since CLion can't do that on it's own.
