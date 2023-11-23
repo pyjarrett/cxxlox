@@ -34,6 +34,10 @@ struct VM {
 
 	void push(Value value);
 	[[nodiscard]] Value pop();
+
+	[[nodiscard]] Value peek(int distance) const;
+
+	void runtimeError(const std::string& message);
 };
 
 void initVM();

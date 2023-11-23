@@ -4,7 +4,7 @@
 #include "scanner.hpp"
 
 #ifdef DEBUG_PRINT_CODE
-#include "debug.hpp"
+	#include "debug.hpp"
 #endif
 
 #include <cassert>
@@ -25,7 +25,8 @@ struct Parser {
 };
 
 // Use enum value auto-incrementing to decide precedence levels.
-enum Precedence {
+enum Precedence
+{
 	PREC_NONE,
 	PREC_ASSIGNMENT, // =
 	PREC_OR,         // or
@@ -41,7 +42,7 @@ enum Precedence {
 
 // We (sadly) maintain inner state in this module, so all parse functions are
 // just plain functions with no parameters because of the global state... :(
-using ParseFn = void(*)();
+using ParseFn = void (*)();
 
 // Pratt parsing rule.
 struct ParseRule {
@@ -65,7 +66,8 @@ struct PrattRuleMap {
 		ParseRule rule;
 	};
 
-	PrattRuleMap(std::initializer_list<PrattRuleRow> items) {
+	PrattRuleMap(std::initializer_list<PrattRuleRow> items)
+	{
 		rules_ = new ParseRule[items.size()];
 
 		// Require the rules to be in order.  This also ensures that every token
@@ -79,9 +81,7 @@ struct PrattRuleMap {
 		}
 	}
 
-	~PrattRuleMap() {
-		delete[] rules_;
-	}
+	~PrattRuleMap() { delete[] rules_; }
 
 	PrattRuleMap(const PrattRuleMap&) = delete;
 	PrattRuleMap& operator=(const PrattRuleMap&) = delete;
@@ -89,9 +89,7 @@ struct PrattRuleMap {
 	PrattRuleMap(PrattRuleMap&&) = delete;
 	PrattRuleMap& operator=(PrattRuleMap&&) = delete;
 
-	const ParseRule* operator[](TokenType token) const {
-		return &rules_[static_cast<int>(token)];
-	}
+	const ParseRule* operator[](TokenType token) const { return &rules_[static_cast<int>(token)]; }
 
 private:
 	ParseRule* rules_ = nullptr;
@@ -154,7 +152,7 @@ static void parsePrecedence(Precedence precedence)
 	advance();
 	ParseFn prefixRule = getRule(parser.previous.type)->prefix;
 	if (!prefixRule) {
-		error ("Expected an expression.");
+		error("Expected an expression.");
 		return;
 	}
 	prefixRule();
@@ -223,23 +221,48 @@ static void endCompiling()
 #endif
 }
 
-static void binary() {
+static void binary()
+{
 	const TokenType operatorType = parser.previous.type;
 	const ParseRule* rule = getRule(operatorType);
 	// Parse the next level up, since all our binary rules are left associative.
 	// This would be different if right-associative operators were handled, and
 	// we would use the same level of precedence again here.
 	parsePrecedence(Precedence(rule->precedence + 1));
-	switch(operatorType) {
-		case TokenType::Plus: emitByte(OP_ADD); break;
-		case TokenType::Minus: emitByte(OP_SUBTRACT); break;
-		case TokenType::Star: emitByte(OP_MULTIPLY); break;
-		case TokenType::Slash: emitByte(OP_DIVIDE); break;
+	switch (operatorType) {
+		case TokenType::Plus:
+			emitByte(OP_ADD);
+			break;
+		case TokenType::Minus:
+			emitByte(OP_SUBTRACT);
+			break;
+		case TokenType::Star:
+			emitByte(OP_MULTIPLY);
+			break;
+		case TokenType::Slash:
+			emitByte(OP_DIVIDE);
+			break;
+		case TokenType::EqualEqual:
+			emitByte(OP_EQUAL);
+			break;
+		case TokenType::BangEqual:
+			emitBytes(OP_EQUAL, OP_NOT);
+			break;
+		case TokenType::Less:
+			emitByte(OP_LESS);
+			break;
+		case TokenType::LessEqual:
+			emitBytes(OP_EQUAL, OP_NOT);
+			break;
+		case TokenType::Greater:
+			emitByte(OP_GREATER);
+			break;
+		case TokenType::GreaterEqual:
+			emitBytes(OP_EQUAL, OP_NOT);
+			break;
 		default:
 			CL_ASSERT(false); // Unknown operator type.
 	}
-
-
 }
 
 static void expression()
@@ -268,8 +291,11 @@ static void unary()
 		case TokenType::Minus:
 			emitByte(OP_NEGATE);
 			break;
+		case TokenType::Bang:
+			emitByte(OP_NOT);
+			break;
 		default:
-			CL_ASSERT(false);
+			CL_FATAL("Unexpected unary operation token.");
 	}
 }
 
@@ -282,10 +308,27 @@ static void number()
 		CL_ASSERT(false); // Invalid conversion.
 		value = 0.0;
 	}
-	emitConstant(value);
+	emitConstant(Value::makeNumber(value));
 }
 
-// clang format off
+static void literal()
+{
+	switch (parser.previous.type) {
+		case TokenType::Nil:
+			emitByte(OP_NIL);
+			break;
+		case TokenType::True:
+			emitByte(OP_TRUE);
+			break;
+		case TokenType::False:
+			emitByte(OP_FALSE);
+			break;
+		default:
+			CL_FATAL("Unexpected literal type.");
+	}
+}
+
+// clang-format off
 static PrattRuleMap rules = {
 	{TokenType::LeftParen, {grouping, nullptr, PREC_NONE}},
 	{TokenType::RightParen, {nullptr, nullptr, PREC_NONE}},
@@ -300,14 +343,14 @@ static PrattRuleMap rules = {
 	{TokenType::Star, {nullptr, binary, PREC_FACTOR}},
 	{TokenType::Slash, {nullptr, binary, PREC_FACTOR}},
 
-	{TokenType::Bang, {nullptr, nullptr, PREC_NONE}},
-	{TokenType::BangEqual, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Bang, {unary, nullptr, PREC_NONE}},
+	{TokenType::BangEqual, {nullptr, binary, PREC_EQUALITY}},
 	{TokenType::Equal, {nullptr, nullptr, PREC_NONE}},
-	{TokenType::EqualEqual, {nullptr, nullptr, PREC_NONE}},
-	{TokenType::Less, {nullptr, nullptr, PREC_NONE}},
-	{TokenType::LessEqual, {nullptr, nullptr, PREC_NONE}},
-	{TokenType::Greater, {nullptr, nullptr, PREC_NONE}},
-	{TokenType::GreaterEqual, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::EqualEqual, {nullptr, binary, PREC_EQUALITY}},
+	{TokenType::Less, {nullptr, binary, PREC_COMPARISON}},
+	{TokenType::LessEqual, {nullptr, binary, PREC_COMPARISON}},
+	{TokenType::Greater, {nullptr, binary, PREC_COMPARISON}},
+	{TokenType::GreaterEqual, {nullptr, binary, PREC_COMPARISON}},
 
 	{TokenType::Identifier, {nullptr, nullptr, PREC_NONE}},
 	{TokenType::String, {nullptr, nullptr, PREC_NONE}},
@@ -328,16 +371,17 @@ static PrattRuleMap rules = {
 
 	{TokenType::Super, {nullptr, nullptr, PREC_NONE}},
 	{TokenType::This, {nullptr, nullptr, PREC_NONE}},
-	{TokenType::Nil, {nullptr, nullptr, PREC_NONE}},
-	{TokenType::True, {nullptr, nullptr, PREC_NONE}},
-	{TokenType::False, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Nil, {literal, nullptr, PREC_NONE}},
+	{TokenType::True, {literal, nullptr, PREC_NONE}},
+	{TokenType::False, {literal, nullptr, PREC_NONE}},
 
 	{TokenType::Error, {nullptr, nullptr, PREC_NONE}},
 	{TokenType::Eof, {nullptr, nullptr, PREC_NONE}},
 };
-// clang format on
+// clang-format on
 
-static const ParseRule* getRule(TokenType type) {
+static const ParseRule* getRule(TokenType type)
+{
 	// Just use an unordered map since I don't want to
 	return rules[type];
 }

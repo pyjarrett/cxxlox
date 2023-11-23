@@ -9,7 +9,8 @@
 #endif
 
 #include "chunk.hpp"
-
+#include <format>
+#include <functional>
 #include <iostream>
 
 namespace cxxlox {
@@ -25,6 +26,17 @@ VM::VM()
 void VM::resetStack()
 {
 	stackTop = &stack[0];
+}
+
+void VM::runtimeError(const std::string& message)
+{
+	std::cerr << message << '\n';
+
+	// ip points to the NEXT instruction to subtract an extra 1.
+	const size_t instruction = reinterpret_cast<uintptr_t>(ip) - reinterpret_cast<uintptr_t>(&vm.chunk->code[0]) - 1;
+	const int line = vm.chunk->lines[instruction];
+
+	std::cerr << std::format("[line {}] in script\n", line);
 }
 
 uint8_t VM::readByte()
@@ -56,11 +68,40 @@ Value VM::pop()
 	return *stackTop;
 }
 
-void initVM() {}
-void freeVM() {}
+Value VM::peek(int distance) const
+{
+	return stackTop[-1 - distance];
+}
 
-static InterpretResult run() {
-	while(true) {
+void initVM()
+{}
+void freeVM()
+{}
+
+// I don't like the lambda here, but I'm just trying to do this without macros.
+// I will probably regret this decision later, due to the likely overhead of the
+// lambda call (if they're not inlined out... is that possible?).
+template <typename Op>
+[[nodiscard]] inline bool binaryOp(Op&& op)
+{
+	if (!vm.peek(0).isNumber() || !vm.peek(1).isNumber()) {
+		vm.runtimeError("Operands must be numbers.");
+		return false;
+	}
+	const auto a = vm.pop().toNumber();
+	const auto b = vm.pop().toNumber();
+	vm.push(Value::makeNumber(op(a, b)));
+	return true;
+}
+
+[[nodiscard]] static bool isFalsey(Value v)
+{
+	return v.isNil() || (v.isBool() && !v.toBool());
+}
+
+static InterpretResult run()
+{
+	while (true) {
 #ifdef DEBUG_TRACE_EXECUTION
 		{
 			std::cout << "        ";
@@ -85,34 +126,62 @@ static InterpretResult run() {
 				std::cout << '\n';
 				return InterpretResult::Ok;
 			case OP_ADD: {
-				const auto right = vm.pop();
-				const auto left = vm.pop();
-				vm.push(left + right);
+				if (!binaryOp([](auto a, auto b) { return a + b; })) {
+					return InterpretResult::RuntimeError;
+				}
 				break;
 			}
 			case OP_SUBTRACT: {
-				const auto right = vm.pop();
-				const auto left = vm.pop();
-				vm.push(left - right);
+				if (!binaryOp([](auto a, auto b) { return a - b; })) {
+					return InterpretResult::RuntimeError;
+				}
 				break;
 			};
 			case OP_MULTIPLY: {
-				const auto right = vm.pop();
-				const auto left = vm.pop();
-				vm.push(left * right);
+				if (!binaryOp([](auto a, auto b) { return a * b; })) {
+					return InterpretResult::RuntimeError;
+				}
 				break;
 			}
 			case OP_DIVIDE: {
-				const auto right = vm.pop();
-				const auto left = vm.pop();
-				vm.push(left / right);
+				if (!binaryOp([](auto a, auto b) { return a / b; })) {
+					return InterpretResult::RuntimeError;
+				}
 				break;
 			}
+			case OP_NOT:
+				vm.push(Value::makeBool(isFalsey(vm.pop())));
+				break;
 			case OP_NEGATE:
-				vm.push(-vm.pop());
+				vm.push(Value::makeNumber(-vm.pop().toNumber()));
 				break;
 			case OP_CONSTANT:
 				vm.push(vm.readConstant());
+				break;
+			case OP_NIL:
+				vm.push(Value::makeNil());
+				break;
+			case OP_TRUE:
+				vm.push(Value::makeBool(true));
+				break;
+			case OP_FALSE:
+				vm.push(Value::makeBool(false));
+				break;
+			case OP_EQUAL: {
+				const auto a = vm.pop();
+				const auto b = vm.pop();
+				vm.push(Value::makeBool(a == b));
+				break;
+			}
+			case OP_GREATER:
+				if (!binaryOp([](auto a, auto b) { return a > b; })) {
+					return InterpretResult::RuntimeError;
+				}
+				break;
+			case OP_LESS:
+				if (!binaryOp([](auto a, auto b) { return a < b; })) {
+					return InterpretResult::RuntimeError;
+				}
 				break;
 			default:
 				// This shouldn't be reachable.

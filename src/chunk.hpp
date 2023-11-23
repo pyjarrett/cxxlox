@@ -14,8 +14,20 @@ enum OpCode : uint8_t
 	OP_SUBTRACT,
 	OP_MULTIPLY,
 	OP_DIVIDE,
+	OP_NOT,
 	OP_NEGATE,
 	OP_RETURN,
+
+	// Comparisons
+	// Note that >= and <= are implemented as !< and !> respectively.
+	OP_EQUAL,
+	OP_GREATER,
+	OP_LESS,
+
+	// Literals
+	OP_NIL,
+	OP_TRUE,
+	OP_FALSE,
 };
 
 /// I'm not sure how to structure this yet since I'm porting this from examples

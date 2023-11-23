@@ -232,8 +232,8 @@ static void skipWhitespace()
 [[nodiscard]] static Token identifier()
 {
 	// We only end up in this function if we started with an alphabetic character
-	// or a _, so all remaining characters can be alphanumberic or an underscore.
-	while (isAlpha(peek() || isDigit(peek()))) {
+	// or a _, so all remaining characters can be alphanumeric or an underscore.
+	while (isAlpha(peek()) || isDigit(peek())) {
 		advance();
 	}
 
