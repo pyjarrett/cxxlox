@@ -24,13 +24,13 @@ bool isObjType(Value value, ObjType type)
 	return value.isObj() && value.toObj()->type == type;
 }
 
-ObjString* copyString(std::string_view view)
+ObjString* copyString(const char* chars, int length)
 {
 	// Also allocate space for a null terminator.
-	char* chars = new char[view.length() + 1];
-	memcpy(chars, view.data(), view.length());
-	chars[view.length()] = '\0';
-	return allocateString(chars, view.length());
+	char* copiedChars = new char[length + 1];
+	memcpy(copiedChars, chars, length);
+	copiedChars[length] = '\0';
+	return allocateString(copiedChars, length);
 }
 
 ObjString* takeString(char* chars, int length)

@@ -316,7 +316,7 @@ static void string()
 {
 	const std::string_view previous = parser.previous.view();
 	const std::string_view withoutQuotes = previous.substr(1, previous.length() - 2);
-	emitConstant(Value::makeString(copyString(withoutQuotes)));
+	emitConstant(Value::makeString(copyString(withoutQuotes.data(), withoutQuotes.length())));
 }
 
 static void literal()

@@ -65,7 +65,7 @@ void printObj(Obj* obj);
 [[nodiscard]] bool isObjType(Value value, ObjType type);
 
 // Copies a string into an ObjString with ownership of the copied memory.
-[[nodiscard]] ObjString* copyString(std::string_view view);
+[[nodiscard]] ObjString* copyString(const char* chars, int length);
 
 /// Take ownership of the given string.
 [[nodiscard]] ObjString* takeString(char* chars, int length);
