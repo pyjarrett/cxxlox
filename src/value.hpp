@@ -8,8 +8,15 @@ enum class ValueType
 {
 	Bool,
 	Nil,
-	Number
+	Number,
+
+	// A heap allocated object
+	Obj,
 };
+
+// Object "base class" (for lack of a better term)
+struct Obj;
+struct ObjString;
 
 // Could be done with std::variant.
 struct Value {
@@ -18,6 +25,7 @@ struct Value {
 	{
 		bool boolean;
 		double number;
+		Obj* obj;
 	} as;
 
 	[[nodiscard]] static Value makeBool(bool b)
@@ -31,6 +39,20 @@ struct Value {
 	{
 		Value v {.type = ValueType::Number};
 		v.as.number = d;
+		return v;
+	}
+
+	[[nodiscard]] static Value makeString(ObjString* str)
+	{
+		Value v {.type = ValueType::Obj};
+		v.as.obj = reinterpret_cast<Obj*>(str);
+		return v;
+	}
+
+	[[nodiscard]] static Value makeObj(Obj* obj)
+	{
+		Value v {.type = ValueType::Obj};
+		v.as.obj = obj;
 		return v;
 	}
 
@@ -49,6 +71,12 @@ struct Value {
 		return as.number;
 	}
 
+	[[nodiscard]] Obj* toObj() const {
+		CL_ASSERT(type == ValueType::Obj);
+		CL_ASSERT(as.obj);
+		return as.obj;
+	}
+
 	[[nodiscard]] bool isNil() const {
 		return type == ValueType::Nil;
 	}
@@ -61,18 +89,11 @@ struct Value {
 		return type == ValueType::Number;
 	}
 
-	[[nodiscard]] bool operator==(const Value& rhs) const {
-		if (type != rhs.type) {
-			return false;
-		}
-		switch (type) {
-			case ValueType::Bool: return as.boolean == rhs.as.boolean;
-			case ValueType::Number: return as.number == rhs.as.number;
-			case ValueType::Nil: return true;
-			default:
-				CL_FATAL("Unknown value type.");
-		}
+	[[nodiscard]] bool isObj() const {
+		return type == ValueType::Obj;
 	}
+
+	[[nodiscard]] bool operator==(const Value& rhs) const;
 };
 
 void printValue(Value v);

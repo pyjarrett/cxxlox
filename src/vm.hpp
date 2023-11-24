@@ -3,11 +3,12 @@
 #include "common.hpp"
 #include "value.hpp"
 
-#include <string> qwq
+#include <string>
 
 namespace cxxlox {
 
 struct Chunk;
+struct Obj;
 
 struct VM {
 	static constexpr int32_t kStackMax = 256;
@@ -25,7 +26,10 @@ struct VM {
 	/// the next element will be pushed.
 	Value* stackTop = &stack[0];
 
+	Obj* objects = nullptr;
+
 	VM();
+	~VM();
 
 	void resetStack();
 
@@ -38,6 +42,10 @@ struct VM {
 	[[nodiscard]] Value peek(int distance) const;
 
 	void runtimeError(const std::string& message);
+
+private:
+	void freeObjects();
+	void freeObj(Obj* obj);
 };
 
 enum class InterpretResult

@@ -9,8 +9,8 @@
 #endif
 
 #include "chunk.hpp"
+#include "object.hpp"
 #include <format>
-#include <functional>
 #include <iostream>
 
 namespace cxxlox {
@@ -21,6 +21,11 @@ VM vm;
 VM::VM()
 {
 	resetStack();
+}
+
+VM::~VM()
+{
+	freeObjects();
 }
 
 void VM::resetStack()
@@ -73,6 +78,29 @@ Value VM::peek(int distance) const
 	return stackTop[-1 - distance];
 }
 
+void VM::freeObjects()
+{
+	Obj* obj = objects;
+	while (obj) {
+		Obj* next = obj->next;
+		freeObj(obj);
+		obj = obj->next;
+	}
+}
+
+void VM::freeObj(Obj* obj)
+{
+	switch (obj->type) {
+		case ObjType::String: {
+			ObjString* str = reinterpret_cast<ObjString*>(obj);
+			delete str;
+		}
+			break;
+		default:
+			CL_FATAL("Unknown object type.");
+	}
+}
+
 // I don't like the lambda here, but I'm just trying to do this without macros.
 // I will probably regret this decision later, due to the likely overhead of the
 // lambda call (if they're not inlined out... is that possible?).
@@ -80,11 +108,12 @@ template <typename Op>
 [[nodiscard]] inline bool binaryOp(Op&& op)
 {
 	if (!vm.peek(0).isNumber() || !vm.peek(1).isNumber()) {
+		// TODO: update error message
 		vm.runtimeError("Operands must be numbers.");
 		return false;
 	}
-	const auto a = vm.pop().toNumber();
 	const auto b = vm.pop().toNumber();
+	const auto a = vm.pop().toNumber();
 	vm.push(Value::makeNumber(op(a, b)));
 	return true;
 }
@@ -92,6 +121,19 @@ template <typename Op>
 [[nodiscard]] static bool isFalsey(Value v)
 {
 	return v.isNil() || (v.isBool() && !v.toBool());
+}
+
+static void concatenate()
+{
+	const auto* b = vm.pop().toObj()->toString();
+	const auto* a = vm.pop().toObj()->toString();
+
+	const auto length = a->length + b->length;
+	char* chars = new char[length + 1];
+	chars[length] = '\0';
+	memcpy(&chars[0], &a->chars[0], a->length);
+	memcpy(&chars[a->length], &b->chars[0], b->length);
+	vm.push(Value::makeObj(takeString(chars, length)->asObj()));
 }
 
 static InterpretResult run()
@@ -121,7 +163,9 @@ static InterpretResult run()
 				std::cout << '\n';
 				return InterpretResult::Ok;
 			case OP_ADD:
-				if (!binaryOp([](auto a, auto b) { return a + b; })) {
+				if (isObjType(vm.peek(0), ObjType::String) && isObjType(vm.peek(1), ObjType::String)) {
+					concatenate();
+				} else if (!binaryOp([](auto a, auto b) { return a + b; })) {
 					return InterpretResult::RuntimeError;
 				}
 				break;

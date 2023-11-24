@@ -4,6 +4,7 @@ set(CXXLOX_SRCS
     cli.cpp
     compiler.cpp
     debug.cpp
+    object.cpp
     scanner.cpp
     value.cpp
     vm.cpp
@@ -18,6 +19,7 @@ set(CXXLOX_HEADERS
     compiler.hpp
     common.hpp
     debug.hpp
+    object.hpp
     scanner.hpp
     value.hpp
     vm.hpp

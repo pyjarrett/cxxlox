@@ -1,6 +1,7 @@
 #include "compiler.hpp"
 
 #include "chunk.hpp"
+#include "object.hpp"
 #include "scanner.hpp"
 
 #ifdef DEBUG_PRINT_CODE
@@ -311,6 +312,13 @@ static void number()
 	emitConstant(Value::makeNumber(value));
 }
 
+static void string()
+{
+	const std::string_view previous = parser.previous.view();
+	const std::string_view withoutQuotes = previous.substr(1, previous.length() - 2);
+	emitConstant(Value::makeString(copyString(withoutQuotes)));
+}
+
 static void literal()
 {
 	switch (parser.previous.type) {
@@ -353,7 +361,7 @@ static PrattRuleMap rules = {
 	{TokenType::GreaterEqual, {nullptr, binary, PREC_COMPARISON}},
 
 	{TokenType::Identifier, {nullptr, nullptr, PREC_NONE}},
-	{TokenType::String, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::String, {string, nullptr, PREC_NONE}},
 	{TokenType::Number, {number, nullptr, PREC_NONE}},
 
 	{TokenType::And, {nullptr, nullptr, PREC_NONE}},

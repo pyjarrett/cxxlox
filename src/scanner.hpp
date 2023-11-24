@@ -75,7 +75,6 @@ struct Token {
 	TokenType type = TokenType::Eof;
 
 	// Lexeme
-	// TODO: This looks exactly like a `string_view`.
 	const char* start = nullptr;
 	size_t length = 0;
 

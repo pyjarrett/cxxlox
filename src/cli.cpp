@@ -4,8 +4,10 @@
 #include "common.hpp"
 #include "debug.hpp"
 #include "vm.hpp"
+
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <string>
 
 namespace cxxlox {
