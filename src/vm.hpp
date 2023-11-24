@@ -22,8 +22,6 @@ struct VM {
 	VM();
 	~VM();
 
-	void resetStack();
-
 	[[nodiscard]] uint8_t readByte();
 	[[nodiscard]] Value readConstant();
 
@@ -37,9 +35,11 @@ struct VM {
 	[[nodiscard]] InterpretResult interpret(const std::string& source);
 
 	void track(Obj* obj);
+
 private:
 	[[nodiscard]] InterpretResult run();
 
+	void resetStack();
 	void freeObjects();
 
 	Chunk* chunk = nullptr;
