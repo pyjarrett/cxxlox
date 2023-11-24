@@ -94,8 +94,7 @@ void VM::freeObj(Obj* obj)
 		case ObjType::String: {
 			ObjString* str = reinterpret_cast<ObjString*>(obj);
 			delete str;
-		}
-			break;
+		} break;
 		default:
 			CL_FATAL("Unknown object type.");
 	}

@@ -3,7 +3,6 @@
 #include "common.hpp"
 #include "value.hpp"
 #include "vm.hpp"
-
 #include <cstddef>
 #include <string_view>
 #include <type_traits>
@@ -22,7 +21,8 @@ struct Obj {
 
 	Obj* next;
 
-	[[nodiscard]] ObjString* toString() {
+	[[nodiscard]] ObjString* toString()
+	{
 		CL_ASSERT(type == ObjType::String);
 		return reinterpret_cast<ObjString*>(this);
 	}
