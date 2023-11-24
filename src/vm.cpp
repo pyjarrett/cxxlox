@@ -8,12 +8,23 @@
 	#include "debug.hpp"
 #endif
 
-#include "chunk.hpp"
 #include "object.hpp"
 #include <format>
 #include <iostream>
 
 namespace cxxlox {
+
+static void freeObj(Obj* obj)
+{
+	switch (obj->type) {
+		case ObjType::String: {
+			ObjString* str = reinterpret_cast<ObjString*>(obj);
+			delete str;
+		} break;
+		default:
+			CL_FATAL("Unknown object type.");
+	}
+}
 
 /// Global VM, to prevent from needing to pass one to every function call.
 VM vm;
@@ -84,19 +95,7 @@ void VM::freeObjects()
 	while (obj) {
 		Obj* next = obj->next;
 		freeObj(obj);
-		obj = obj->next;
-	}
-}
-
-void VM::freeObj(Obj* obj)
-{
-	switch (obj->type) {
-		case ObjType::String: {
-			ObjString* str = reinterpret_cast<ObjString*>(obj);
-			delete str;
-		} break;
-		default:
-			CL_FATAL("Unknown object type.");
+		obj = next;
 	}
 }
 
@@ -135,7 +134,7 @@ static void concatenate()
 	vm.push(Value::makeObj(takeString(chars, length)->asObj()));
 }
 
-static InterpretResult run()
+InterpretResult VM::run()
 {
 	while (true) {
 #ifdef DEBUG_TRACE_EXECUTION
@@ -225,7 +224,7 @@ static InterpretResult run()
 	}
 }
 
-InterpretResult interpret(const std::string& source)
+InterpretResult VM::interpret(const std::string& source)
 {
 	Chunk chunk;
 
@@ -237,6 +236,17 @@ InterpretResult interpret(const std::string& source)
 	vm.ip = &vm.chunk->code[0];
 
 	return run();
+}
+
+void VM::track(Obj* obj)
+{
+	obj->next = objects;
+	objects = obj;
+}
+
+InterpretResult interpret(const std::string& source)
+{
+	return vm.interpret(source);
 }
 
 } // namespace cxxlox

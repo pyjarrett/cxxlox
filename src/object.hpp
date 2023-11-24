@@ -36,8 +36,7 @@ T* allocateObj(ObjType type)
 	static_assert(std::is_standard_layout_v<T>, "Type is not standard layout.");
 	T* t = new T;
 	t->obj.type = ObjType::String;
-	t->obj.next = vm.objects;
-	vm.objects = reinterpret_cast<Obj*>(t);
+	vm.track(reinterpret_cast<Obj*>(t));
 	return t;
 }
 
