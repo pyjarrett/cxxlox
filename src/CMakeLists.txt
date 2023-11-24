@@ -1,5 +1,4 @@
 set(CXXLOX_SRCS
-    main.cpp
     chunk.cpp
     cli.cpp
     compiler.cpp
@@ -24,5 +23,8 @@ set(CXXLOX_HEADERS
     value.hpp
     vm.hpp
 )
-add_executable(cxxlox_vm ${CXXLOX_SRCS} ${CXXLOX_HEADERS})
-target_include_directories(cxxlox_vm SYSTEM PUBLIC ${PROJECT_ROOT}/src)
+add_library(cxxlox_vm STATIC ${CXXLOX_SRCS} ${CXXLOX_HEADERS})
+add_executable(cxxlox_vm_cli main.cpp)
+target_link_libraries(cxxlox_vm_cli cxxlox_vm)
+target_include_directories(cxxlox_vm_cli SYSTEM PUBLIC ${PROJECT_ROOT}/src)
+
