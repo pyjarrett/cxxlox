@@ -18,8 +18,7 @@ enum class ObjType
 
 struct Obj {
 	ObjType type;
-
-	Obj* next;
+	Obj* next = nullptr;
 
 	[[nodiscard]] ObjString* toString()
 	{
@@ -35,7 +34,7 @@ T* allocateObj(ObjType type)
 	static_assert(offsetof(T, obj) == 0, "Obj must be the first member of the type.");
 	static_assert(std::is_standard_layout_v<T>, "Type is not standard layout.");
 	T* t = new T;
-	t->obj.type = ObjType::String;
+	t->obj.type = type;
 	vm.track(reinterpret_cast<Obj*>(t));
 	return t;
 }

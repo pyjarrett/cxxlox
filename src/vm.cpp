@@ -27,6 +27,7 @@ static void freeObj(Obj* obj)
 }
 
 /// Global VM, to prevent from needing to pass one to every function call.
+/// FIXME: Figure out a way to eliminate this.
 VM vm;
 
 VM::VM()
