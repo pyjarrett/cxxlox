@@ -281,13 +281,12 @@ Token scanToken()
 		case '>': return match('=') ? makeToken(TokenType::GreaterEqual) : makeToken(TokenType::Greater);
 
 		case '"': return makeString();
-
-		// Keywords.
+		default:
+			// The token wasn't recognized, so report an error.
+			return errorToken("Unexpected character.");
 	}
 	// clang-format on
 
-	// The token wasn't recognized, so report an error.
-	return errorToken("Unexpected character.");
 }
 
 } // namespace cxxlox
