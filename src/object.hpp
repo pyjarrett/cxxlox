@@ -3,13 +3,12 @@
 #include "common.hpp"
 #include "value.hpp"
 #include "vm.hpp"
+
 #include <cstddef>
 #include <string_view>
 #include <type_traits>
 
 namespace cxxlox {
-
-extern VM vm;
 
 enum class ObjType
 {
@@ -31,6 +30,8 @@ struct Obj {
 template <typename T>
 T* allocateObj(ObjType type)
 {
+	// TODO: Formalize this extern in a better way.
+	extern VM vm;
 	static_assert(offsetof(T, obj) == 0, "Obj must be the first member of the type.");
 	static_assert(std::is_standard_layout_v<T>, "Type is not standard layout.");
 	T* t = new T;
