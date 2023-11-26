@@ -47,5 +47,3 @@ add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} -V -C $<CONFIG>)
 # check-iterate is the target to use when iterating when using tests,
 # such as TDD's red->green pattern.
 add_custom_target(check-iterate COMMAND ${CMAKE_CTEST_COMMAND} -V --rerun-failed -C $<CONFIG>)
-
-enable_testing()

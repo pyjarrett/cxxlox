@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "test_helpers.hpp"
 #include <object.hpp>
 #include <value.hpp>
 #include <vm.hpp>
@@ -7,11 +8,11 @@
 using cxxlox::VM;
 using cxxlox::Value;
 
-TEST(VM, ValueStack)
-{
-	VM::reset();
-	VM& vm = VM::instance();
+class VMTest : public cxxlox::LoxTest {};
 
+TEST_F(VMTest, ValueStack)
+{
+	VM& vm = VM::instance();
 
 	constexpr double phi = 1.6180339;
 

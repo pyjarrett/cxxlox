@@ -1,4 +1,6 @@
 #include <gtest/gtest.h>
+
+#include "test_helpers.hpp"
 #include <object.hpp>
 #include <value.hpp>
 #include <vm.hpp>
@@ -11,11 +13,10 @@ using cxxlox::Table;
 using cxxlox::Value;
 using cxxlox::VM;
 
-TEST(ObjString, Copy)
-{
-	// Interned strings rely on the VM.
-	VM::reset();
+class ObjTest : public cxxlox::LoxTest {};
 
+TEST(ObjTest, ObjStringCopy)
+{
 	std::string aString = "this is a string";
 	ObjString* first = cxxlox::copyString(aString.c_str(), aString.length());
 	ObjString* second = cxxlox::copyString(aString.c_str(), aString.length());

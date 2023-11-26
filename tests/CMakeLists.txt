@@ -1,5 +1,6 @@
 # GoogleTest help: https://google.github.io/googletest/quickstart-cmake.html
 
+enable_testing()
 include(GoogleTest)
 
 add_executable(object_tests

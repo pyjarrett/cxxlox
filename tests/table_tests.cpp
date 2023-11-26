@@ -1,4 +1,6 @@
 #include <gtest/gtest.h>
+
+#include "test_helpers.hpp"
 #include <object.hpp>
 #include <value.hpp>
 #include <vm.hpp>
@@ -7,20 +9,19 @@ using cxxlox::Table;
 using cxxlox::Value;
 using cxxlox::VM;
 
+class TableTest : public cxxlox::LoxTest {};
+
 static cxxlox::ObjString* makeString(std::string_view view)
 {
 	return cxxlox::copyString(view.data(), view.length());
 }
 
-TEST(Table, BasicSet)
+TEST_F(TableTest, BasicSet)
 {
-	// Interned strings rely on the VM.  That's the state of things.
-	VM::reset();
-
 	Table table;
 	table.set(makeString("truth"), Value::makeBool(true));
 
-	Value value;
+	Value value {};
 	EXPECT_TRUE(table.get(makeString("truth"), &value));
 	EXPECT_TRUE(value.isBool() && value.as.boolean == true);
 
@@ -29,11 +30,8 @@ TEST(Table, BasicSet)
 	EXPECT_TRUE(value.isNumber() && value.as.number == 30);
 }
 
-TEST(Table, SetWithResize)
+TEST_F(TableTest, SetWithResize)
 {
-	// Interned strings rely on the VM.  That's the state of things.
-	VM::reset();
-
 	Table table;
 	for (int i = 0; i < 200; ++i) {
 		table.set(makeString(std::to_string(i)), Value::makeNumber(i));
