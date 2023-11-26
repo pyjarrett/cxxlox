@@ -9,7 +9,9 @@ using cxxlox::Value;
 
 TEST(VM, ValueStack)
 {
-	VM vm;
+	VM::reset();
+	VM& vm = VM::instance();
+
 
 	constexpr double phi = 1.6180339;
 

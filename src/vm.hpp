@@ -1,7 +1,9 @@
 #pragma once
 
 #include "common.hpp"
+#include "table.hpp"
 #include "value.hpp"
+
 #include <string>
 
 namespace cxxlox {
@@ -19,8 +21,8 @@ enum class InterpretResult
 struct VM {
 	static constexpr int32_t kStackMax = 256;
 
-	VM();
-	~VM();
+	static VM& instance();
+	static void reset();
 
 	[[nodiscard]] uint8_t readByte();
 	[[nodiscard]] Value readConstant();
@@ -35,8 +37,13 @@ struct VM {
 	[[nodiscard]] InterpretResult interpret(const std::string& source);
 
 	void track(Obj* obj);
+	void intern(ObjString* str);
+	ObjString* lookup(const char* chars, int32_t length, uint32_t hash) const;
 
 private:
+	VM();
+	~VM();
+
 	[[nodiscard]] InterpretResult run();
 
 	void resetStack();
@@ -57,6 +64,11 @@ private:
 
 	/// Objects tracked for garbage collection.
 	Obj* objects = nullptr;
+
+	/// Interned strings.
+	Table strings;
+
+	static VM* s_instance;
 };
 
 InterpretResult interpret(const std::string& source);

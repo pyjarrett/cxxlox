@@ -14,6 +14,8 @@
 
 namespace cxxlox {
 
+VM* VM::s_instance = nullptr;
+
 static void freeObj(Obj* obj)
 {
 	switch (obj->type) {
@@ -27,8 +29,21 @@ static void freeObj(Obj* obj)
 }
 
 /// Global VM, to prevent from needing to pass one to every function call.
-/// FIXME: Figure out a way to eliminate this.
-VM vm;
+/* static */ VM& VM::instance()
+{
+	// I want to be able to reset the instance for testing.  This isn't
+	// threadsafe, but this is also a toy implementation.
+	if (!s_instance) {
+		s_instance = new VM;
+	}
+	return *s_instance;
+}
+
+/* static */ void VM::reset()
+{
+	delete s_instance;
+	s_instance = new VM;
+}
 
 VM::VM()
 {
@@ -50,8 +65,8 @@ void VM::runtimeError(const std::string& message)
 	std::cerr << message << '\n';
 
 	// ip points to the NEXT instruction to subtract an extra 1.
-	const uintptr_t instruction = reinterpret_cast<uintptr_t>(ip) - reinterpret_cast<uintptr_t>(&vm.chunk->code[0]) - 1;
-	const int line = vm.chunk->lines[int(instruction)];
+	const uintptr_t instruction = reinterpret_cast<uintptr_t>(ip) - reinterpret_cast<uintptr_t>(&chunk->code[0]) - 1;
+	const int line = chunk->lines[int(instruction)];
 
 	std::cerr << std::format("[line {}] in script\n", line);
 }
@@ -106,6 +121,7 @@ void VM::freeObjects()
 template <typename Op>
 [[nodiscard]] inline bool binaryOp(Op&& op)
 {
+	VM& vm = VM::instance();
 	if (!vm.peek(0).isNumber() || !vm.peek(1).isNumber()) {
 		// TODO: update error message
 		vm.runtimeError("Operands must be numbers.");
@@ -124,6 +140,7 @@ template <typename Op>
 
 static void concatenate()
 {
+	VM& vm = VM::instance();
 	const auto* b = vm.pop().toObj()->toString();
 	const auto* a = vm.pop().toObj()->toString();
 
@@ -141,28 +158,28 @@ InterpretResult VM::run()
 #ifdef DEBUG_TRACE_EXECUTION
 		{
 			std::cout << "        ";
-			for (Value* slot = vm.stack; slot != vm.stackTop; ++slot) {
+			for (Value* slot = stack; slot != stackTop; ++slot) {
 				std::cout << '[';
 				printValue(*slot);
 				std::cout << ']';
 			}
 			std::cout << '\n';
-			const auto offset = int32_t(std::distance(&vm.chunk->code[0], vm.ip));
-			CL_UNUSED(disassembleInstruction(*vm.chunk, offset));
+			const auto offset = int32_t(std::distance(&chunk->code[0], ip));
+			CL_UNUSED(disassembleInstruction(*chunk, offset));
 		}
 #endif
 
-		const uint8_t instruction = vm.readByte();
+		const uint8_t instruction = readByte();
 		// Dispatch (decoding) the instruction.
 		switch (instruction) {
 			case OP_RETURN:
 				// for now, end execution -- this will be replaced with returning
 				// a value from a function.
-				printValue(vm.pop());
+				printValue(pop());
 				std::cout << '\n';
 				return InterpretResult::Ok;
 			case OP_ADD:
-				if (isObjType(vm.peek(0), ObjType::String) && isObjType(vm.peek(1), ObjType::String)) {
+				if (isObjType(peek(0), ObjType::String) && isObjType(peek(1), ObjType::String)) {
 					concatenate();
 				} else if (!binaryOp([](auto a, auto b) { return a + b; })) {
 					return InterpretResult::RuntimeError;
@@ -184,27 +201,27 @@ InterpretResult VM::run()
 				}
 				break;
 			case OP_NOT:
-				vm.push(Value::makeBool(isFalsey(vm.pop())));
+				push(Value::makeBool(isFalsey(pop())));
 				break;
 			case OP_NEGATE:
-				vm.push(Value::makeNumber(-vm.pop().toNumber()));
+				push(Value::makeNumber(-pop().toNumber()));
 				break;
 			case OP_CONSTANT:
-				vm.push(vm.readConstant());
+				push(readConstant());
 				break;
 			case OP_NIL:
-				vm.push(Value::makeNil());
+				push(Value::makeNil());
 				break;
 			case OP_TRUE:
-				vm.push(Value::makeBool(true));
+				push(Value::makeBool(true));
 				break;
 			case OP_FALSE:
-				vm.push(Value::makeBool(false));
+				push(Value::makeBool(false));
 				break;
 			case OP_EQUAL: {
-				const auto a = vm.pop();
-				const auto b = vm.pop();
-				vm.push(Value::makeBool(a == b));
+				const auto a = pop();
+				const auto b = pop();
+				push(Value::makeBool(a == b));
 				break;
 			}
 			case OP_GREATER:
@@ -227,14 +244,14 @@ InterpretResult VM::run()
 
 InterpretResult VM::interpret(const std::string& source)
 {
-	Chunk chunk;
+	Chunk compiledChunk;
 
-	if (!compile(source, &chunk)) {
+	if (!compile(source, &compiledChunk)) {
 		return InterpretResult::CompileError;
 	}
 
-	vm.chunk = &chunk;
-	vm.ip = &vm.chunk->code[0];
+	chunk = &compiledChunk;
+	ip = &chunk->code[0];
 
 	return run();
 }
@@ -245,9 +262,19 @@ void VM::track(Obj* obj)
 	objects = obj;
 }
 
+void VM::intern(ObjString* obj)
+{
+	strings.set(obj, Value::makeNil());
+}
+
+ObjString* VM::lookup(const char* chars, int32_t length, uint32_t hash) const
+{
+	return strings.findKey(chars, length, hash);
+}
+
 InterpretResult interpret(const std::string& source)
 {
-	return vm.interpret(source);
+	return VM::instance().interpret(source);
 }
 
 } // namespace cxxlox

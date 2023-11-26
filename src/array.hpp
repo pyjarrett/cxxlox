@@ -6,8 +6,6 @@
 
 namespace cxxlox {
 
-[[nodiscard]] int32_t growCapacity(int32_t previousCapacity);
-
 template <typename T>
 class Array
 {

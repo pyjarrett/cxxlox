@@ -1,10 +1,12 @@
 set(CXXLOX_SRCS
     chunk.cpp
     cli.cpp
+    common.cpp
     compiler.cpp
     debug.cpp
     object.cpp
     scanner.cpp
+    table.cpp
     value.cpp
     vm.cpp
 )
@@ -15,11 +17,12 @@ set(CXXLOX_HEADERS
     array.hpp
     chunk.hpp
     cli.hpp
-    compiler.hpp
     common.hpp
+    compiler.hpp
     debug.hpp
     object.hpp
     scanner.hpp
+    table.hpp
     value.hpp
     vm.hpp
 )
