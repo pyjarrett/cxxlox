@@ -57,6 +57,7 @@ enum class TokenType
 
 	Class,
 	Fun,
+	Var,
 	Print,
 
 	Super,

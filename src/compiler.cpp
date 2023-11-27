@@ -298,6 +298,46 @@ static void printStatement()
 	emitByte(OP_PRINT);
 }
 
+// Finds the next "known good" point if the parser is in a bad state.  This
+// reduces cascading errors.
+static void synchronize()
+{
+	CL_ASSERT(parser.panicMode);
+
+	parser.panicMode = false;
+	while (parser.current.type != TokenType::Eof) {
+		// Semicolons terminate statements, so that means this might be a good spot.
+		if (parser.previous.type == TokenType::Semicolon) {
+			return;
+		}
+
+		// Control flow and declarations are another good place to try to parse again.
+		switch (parser.current.type) {
+			case TokenType::Class:
+				[[fallthrough]];
+			case TokenType::Fun:
+				[[fallthrough]];
+			case TokenType::Var:
+				[[fallthrough]];
+			case TokenType::For:
+				[[fallthrough]];
+			case TokenType::If:
+				[[fallthrough]];
+			case TokenType::While:
+				[[fallthrough]];
+			case TokenType::Print:
+				[[fallthrough]];
+			case TokenType::Return:
+				return;
+			default:
+				break;
+		}
+
+		// Move forward and look again for a good point to try parsing again.
+		advance();
+	}
+}
+
 static void expressionStatement()
 {
 	expression();
@@ -308,14 +348,19 @@ static void expressionStatement()
 static void declaration()
 {
 	statement();
+
+	// The parser could be in an error state, if so, then synchronize to a reasonable
+	// "known good" point.
+	if (parser.panicMode) {
+		synchronize();
+	}
 }
 
 static void statement()
 {
-	if (match (TokenType::Print)) {
+	if (match(TokenType::Print)) {
 		printStatement();
-	}
-	else {
+	} else {
 		expressionStatement();
 	}
 }
@@ -424,6 +469,7 @@ static PrattRuleMap rules = {
 
 	{TokenType::Class, {nullptr, nullptr, PREC_NONE}},
 	{TokenType::Fun, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Var, {nullptr, nullptr, PREC_NONE}},
 	{TokenType::Print, {nullptr, nullptr, PREC_NONE}},
 
 	{TokenType::Super, {nullptr, nullptr, PREC_NONE}},
