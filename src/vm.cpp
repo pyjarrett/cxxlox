@@ -215,6 +215,15 @@ InterpretResult VM::run()
 			case OP_POP:
 				CL_UNUSED(pop());
 				break;
+			case OP_GET_GLOBAL:{
+				ObjString* name = readString();
+				Value value {};
+				if (!globals.get(name, &value)) {
+					runtimeError(std::format("Unknown variable '{}'", name->chars));
+					return InterpretResult::RuntimeError;
+				}
+				push(value);
+			} break;
 			case OP_DEFINE_GLOBAL: {
 				ObjString* name = readString();
 				globals.set(name, peek(0));

@@ -449,6 +449,17 @@ static void string()
 	emitConstant(Value::makeString(copyString(withoutQuotes.data(), withoutQuotes.length())));
 }
 
+static void namedVariable(Token name)
+{
+	const uint8_t arg = identifierConstant(&name);
+	emitBytes(OP_GET_GLOBAL, arg);
+}
+
+static void variable()
+{
+	namedVariable(parser.previous);
+}
+
 static void literal()
 {
 	switch (parser.previous.type) {
@@ -490,7 +501,7 @@ static PrattRuleMap rules = {
 	{TokenType::Greater, {nullptr, binary, PREC_COMPARISON}},
 	{TokenType::GreaterEqual, {nullptr, binary, PREC_COMPARISON}},
 
-	{TokenType::Identifier, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Identifier, {variable, nullptr, PREC_NONE}},
 	{TokenType::String, {string, nullptr, PREC_NONE}},
 	{TokenType::Number, {number, nullptr, PREC_NONE}},
 
