@@ -298,6 +298,13 @@ static void printStatement()
 	emitByte(OP_PRINT);
 }
 
+static void expressionStatement()
+{
+	expression();
+	consume(TokenType::Semicolon, "Expected a ';' after expression.");
+	emitByte(OP_POP);
+}
+
 static void declaration()
 {
 	statement();
@@ -305,12 +312,12 @@ static void declaration()
 
 static void statement()
 {
-	// Print statement
 	if (match (TokenType::Print)) {
 		printStatement();
 	}
-
-	// Expression statement
+	else {
+		expressionStatement();
+	}
 }
 
 // Grouping expression like "(expr)".  Assumes the leading "(" has already been

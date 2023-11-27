@@ -207,6 +207,9 @@ InterpretResult VM::run()
 				printValue(pop());
 				std::cout << '\n';
 				break;
+			case OP_POP:
+				CL_UNUSED(pop());
+				break;
 			case OP_CONSTANT:
 				push(readConstant());
 				break;
