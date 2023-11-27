@@ -76,6 +76,8 @@ int32_t disassembleInstruction(const Chunk& chunk, int32_t offset)
 			return constantInstruction("OP_GET_GLOBAL", chunk, offset);
 		case OP_DEFINE_GLOBAL:
 			return constantInstruction("OP_DEFINE_GLOBAL", chunk, offset);
+		case OP_SET_GLOBAL:
+			return constantInstruction("OP_SET_GLOBAL", chunk, offset);
 		case OP_RETURN:
 			return simpleInstruction("OP_RETURN", offset);
 		case OP_EQUAL:

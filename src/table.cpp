@@ -75,7 +75,7 @@ bool Table::set(ObjString* key, Value value)
 	Entry* entry = findEntry(entries_, capacity_, key);
 
 	// The entry might have been a tombstone.
-	const bool isNewKey = !entry->isTombstone();
+	const bool isNewKey = entry->key == nullptr && !entry->isTombstone();
 	if (isNewKey) {
 		count_++;
 	}

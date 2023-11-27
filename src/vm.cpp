@@ -219,7 +219,7 @@ InterpretResult VM::run()
 				ObjString* name = readString();
 				Value value {};
 				if (!globals.get(name, &value)) {
-					runtimeError(std::format("Unknown variable '{}'", name->chars));
+					runtimeError(std::format("Unknown variable '{}'.", name->chars));
 					return InterpretResult::RuntimeError;
 				}
 				push(value);
@@ -228,6 +228,17 @@ InterpretResult VM::run()
 				ObjString* name = readString();
 				globals.set(name, peek(0));
 				CL_UNUSED(pop());
+			} break;
+			case OP_SET_GLOBAL: {
+				ObjString* name = readString();
+				if (globals.set(name, peek(0))) {
+					// If a new variable is created by trying to set this, remove the
+					// new variable, since this means the global wasn't declared
+					// previously.
+					globals.remove(name);
+					runtimeError(std::format("Unknown variable '{}'.", name->chars));
+					return InterpretResult::RuntimeError;
+				}
 			} break;
 			case OP_CONSTANT:
 				push(readConstant());

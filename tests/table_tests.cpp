@@ -19,13 +19,16 @@ static cxxlox::ObjString* makeString(std::string_view view)
 TEST_F(TableTest, BasicSet)
 {
 	Table table;
-	table.set(makeString("truth"), Value::makeBool(true));
+	EXPECT_TRUE(table.set(makeString("truth"), Value::makeBool(true)));
+	// Reusing variable name, shouldn't create a new variable.
+	EXPECT_FALSE(table.set(makeString("truth"), Value::makeBool(false)));
+	EXPECT_FALSE(table.set(makeString("truth"), Value::makeBool(true)));
 
 	Value value {};
 	EXPECT_TRUE(table.get(makeString("truth"), &value));
 	EXPECT_TRUE(value.isBool() && value.as.boolean == true);
 
-	table.set(makeString("thirty"), Value::makeNumber(30));
+	EXPECT_TRUE(table.set(makeString("thirty"), Value::makeNumber(30)));
 	EXPECT_TRUE(table.get(makeString("thirty"), &value));
 	EXPECT_TRUE(value.isNumber() && value.as.number == 30);
 }

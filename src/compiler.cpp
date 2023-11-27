@@ -43,7 +43,7 @@ enum Precedence
 
 // We (sadly) maintain inner state in this module, so all parse functions are
 // just plain functions with no parameters because of the global state... :(
-using ParseFn = void (*)();
+using ParseFn = void (*)(bool canAssign);
 
 // Pratt parsing rule.
 struct ParseRule {
@@ -101,6 +101,7 @@ static void statement();
 static void expression();
 static const ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
+static bool match(TokenType type);
 static void consume(TokenType type, const char* errorMessage);
 static uint8_t makeConstant(Value value);
 static void emitBytes(uint8_t byte1, uint8_t byte2);
@@ -161,12 +162,18 @@ static void parsePrecedence(Precedence precedence)
 		error("Expected an expression.");
 		return;
 	}
-	prefixRule();
+
+	const bool canAssign = precedence <= PREC_ASSIGNMENT;
+	prefixRule(canAssign);
 
 	while (precedence <= getRule(parser.current.type)->precedence) {
 		advance();
 		ParseFn infixRule = getRule(parser.previous.type)->infix;
-		infixRule();
+		infixRule(canAssign);
+	}
+
+	if (canAssign && match(TokenType::Equal)) {
+		error("Invalid assignment target.");
 	}
 }
 
@@ -261,7 +268,7 @@ static void endCompiling()
 #endif
 }
 
-static void binary()
+static void binary([[maybe_unused]] bool canAssign)
 {
 	const TokenType operatorType = parser.previous.type;
 	const ParseRule* rule = getRule(operatorType);
@@ -313,9 +320,9 @@ static void expression()
 static void varDeclaration()
 {
 	const uint8_t global = parseVariable("Expected a variable name.");
-	if (match (TokenType::Equal)) {
+	if (match(TokenType::Equal)) {
 		expression();
-	}else {
+	} else {
 		emitByte(OP_NIL);
 	}
 	consume(TokenType::Semicolon, "Expected a ';' after a variable declaration.");
@@ -403,13 +410,13 @@ static void statement()
 
 // Grouping expression like "(expr)".  Assumes the leading "(" has already been
 // encountered.
-static void grouping()
+static void grouping([[maybe_unused]] bool canAssign)
 {
 	expression();
 	consume(TokenType::RightParen, "Expected ')' after expression.");
 }
 
-static void unary()
+static void unary([[maybe_unused]] bool canAssign)
 {
 	const TokenType operatorType = parser.previous.type;
 
@@ -430,7 +437,7 @@ static void unary()
 	}
 }
 
-static void number()
+static void number([[maybe_unused]] bool canAssign)
 {
 	double value;
 	const auto result = std::from_chars(parser.previous.start, parser.previous.start + parser.previous.length, value);
@@ -442,25 +449,31 @@ static void number()
 	emitConstant(Value::makeNumber(value));
 }
 
-static void string()
+static void string([[maybe_unused]] bool canAssign)
 {
 	const std::string_view previous = parser.previous.view();
 	const std::string_view withoutQuotes = previous.substr(1, previous.length() - 2);
 	emitConstant(Value::makeString(copyString(withoutQuotes.data(), withoutQuotes.length())));
 }
 
-static void namedVariable(Token name)
+static void namedVariable(Token name, bool canAssign)
 {
 	const uint8_t arg = identifierConstant(&name);
-	emitBytes(OP_GET_GLOBAL, arg);
+
+	if (canAssign && match(TokenType::Equal)) {
+		expression();
+		emitBytes(OP_SET_GLOBAL, arg);
+	} else {
+		emitBytes(OP_GET_GLOBAL, arg);
+	}
 }
 
-static void variable()
+static void variable(bool canAssign)
 {
-	namedVariable(parser.previous);
+	namedVariable(parser.previous, canAssign);
 }
 
-static void literal()
+static void literal([[maybe_unused]] bool canAssign)
 {
 	switch (parser.previous.type) {
 		case TokenType::Nil:
