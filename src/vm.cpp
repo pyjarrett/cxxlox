@@ -82,6 +82,11 @@ Value VM::readConstant()
 	return chunk->constants[readByte()];
 }
 
+ObjString* VM::readString()
+{
+	return readConstant().toObj()->toString();
+}
+
 void VM::push(const Value value)
 {
 	// Check for stack overflow.
@@ -210,6 +215,11 @@ InterpretResult VM::run()
 			case OP_POP:
 				CL_UNUSED(pop());
 				break;
+			case OP_DEFINE_GLOBAL: {
+				ObjString* name = readString();
+				globals.set(name, peek(0));
+				CL_UNUSED(pop());
+			} break;
 			case OP_CONSTANT:
 				push(readConstant());
 				break;

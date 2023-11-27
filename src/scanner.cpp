@@ -220,6 +220,7 @@ static void skipWhitespace()
 					return TokenType::Identifier;
 			}
 		}
+		case 'v': return checkKeyword(1, "ar", TokenType::Var);
 		case 'w': return checkKeyword(1, "hile", TokenType::While);
 	}
 

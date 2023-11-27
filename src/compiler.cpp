@@ -101,6 +101,9 @@ static void statement();
 static void expression();
 static const ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
+static void consume(TokenType type, const char* errorMessage);
+static uint8_t makeConstant(Value value);
+static void emitBytes(uint8_t byte1, uint8_t byte2);
 
 static void errorAt(const Token& token, const char* message)
 {
@@ -165,6 +168,23 @@ static void parsePrecedence(Precedence precedence)
 		ParseFn infixRule = getRule(parser.previous.type)->infix;
 		infixRule();
 	}
+}
+
+[[nodiscard]] static uint8_t identifierConstant(Token* name)
+{
+	return makeConstant(Value::makeObj(copyString(name->start, name->length)->asObj()));
+}
+
+// Look for a variable, returning the index in the constants map.
+[[nodiscard]] static uint8_t parseVariable(const char* errorMessage)
+{
+	consume(TokenType::Identifier, errorMessage);
+	return identifierConstant(&parser.previous);
+}
+
+static void defineVariable(uint8_t global)
+{
+	emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
 // Expect the next token to be a given type, move along if it is, otherwise
@@ -290,6 +310,18 @@ static void expression()
 	parsePrecedence(PREC_ASSIGNMENT);
 }
 
+static void varDeclaration()
+{
+	const uint8_t global = parseVariable("Expected a variable name.");
+	if (match (TokenType::Equal)) {
+		expression();
+	}else {
+		emitByte(OP_NIL);
+	}
+	consume(TokenType::Semicolon, "Expected a ';' after a variable declaration.");
+	defineVariable(global);
+}
+
 // Parse a print statement, assuming the previous token is "print".
 static void printStatement()
 {
@@ -347,7 +379,11 @@ static void expressionStatement()
 
 static void declaration()
 {
-	statement();
+	if (match(TokenType::Var)) {
+		varDeclaration();
+	} else {
+		statement();
+	}
 
 	// The parser could be in an error state, if so, then synchronize to a reasonable
 	// "known good" point.

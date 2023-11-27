@@ -26,6 +26,7 @@ struct VM {
 
 	[[nodiscard]] uint8_t readByte();
 	[[nodiscard]] Value readConstant();
+	[[nodiscard]] ObjString* readString();
 
 	void push(Value value);
 	[[nodiscard]] Value pop();
@@ -67,6 +68,9 @@ private:
 
 	/// Interned strings.
 	Table strings;
+
+	/// Global variables.
+	Table globals;
 
 	static VM* s_instance;
 };
