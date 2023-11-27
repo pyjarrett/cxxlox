@@ -173,10 +173,7 @@ InterpretResult VM::run()
 		// Dispatch (decoding) the instruction.
 		switch (instruction) {
 			case OP_RETURN:
-				// for now, end execution -- this will be replaced with returning
-				// a value from a function.
-				printValue(pop());
-				std::cout << '\n';
+				// for now, end execution
 				return InterpretResult::Ok;
 			case OP_ADD:
 				if (isObjType(peek(0), ObjType::String) && isObjType(peek(1), ObjType::String)) {
@@ -205,6 +202,10 @@ InterpretResult VM::run()
 				break;
 			case OP_NEGATE:
 				push(Value::makeNumber(-pop().toNumber()));
+				break;
+			case OP_PRINT:
+				printValue(pop());
+				std::cout << '\n';
 				break;
 			case OP_CONSTANT:
 				push(readConstant());

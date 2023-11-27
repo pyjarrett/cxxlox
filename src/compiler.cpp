@@ -96,6 +96,8 @@ private:
 	ParseRule* rules_ = nullptr;
 };
 
+static void declaration();
+static void statement();
 static void expression();
 static const ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
@@ -175,6 +177,23 @@ static void consume(TokenType type, const char* message)
 	}
 
 	errorAtCurrent(message);
+}
+
+// See if the current token is the given type.
+[[nodiscard]] static bool check(TokenType type)
+{
+	return parser.current.type == type;
+}
+
+// Advance and return true if the current token type is found, false otherwise
+[[nodiscard]] static bool match(TokenType type)
+{
+	if (!check(type)) {
+		return false;
+	}
+
+	advance();
+	return true;
 }
 
 [[nodiscard]] Chunk* currentChunk()
@@ -269,6 +288,29 @@ static void binary()
 static void expression()
 {
 	parsePrecedence(PREC_ASSIGNMENT);
+}
+
+// Parse a print statement, assuming the previous token is "print".
+static void printStatement()
+{
+	expression();
+	consume(TokenType::Semicolon, "Expected a ';' after print statement.");
+	emitByte(OP_PRINT);
+}
+
+static void declaration()
+{
+	statement();
+}
+
+static void statement()
+{
+	// Print statement
+	if (match (TokenType::Print)) {
+		printStatement();
+	}
+
+	// Expression statement
 }
 
 // Grouping expression like "(expr)".  Assumes the leading "(" has already been
@@ -406,7 +448,10 @@ bool compile(const std::string& source, Chunk* chunk)
 	parser = {};
 
 	advance();
-	expression();
+
+	while (!match(TokenType::Eof)) {
+		declaration();
+	}
 	consume(TokenType::Eof, "Expected end of expression.");
 	endCompiling();
 	return !parser.hadError;
