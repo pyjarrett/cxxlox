@@ -9,6 +9,7 @@
 #endif
 
 #include <cassert>
+#include <cstring>
 #include <format>
 #include <iostream>
 
@@ -56,8 +57,30 @@ struct ParseRule {
 	Precedence precedence;
 };
 
+// A local variable.
+struct Local {
+	Token name;
+
+	// The scope depth of this variable.  A depth of -1 means that it is
+	// declared, but not yet initialized (defined).
+	int depth = -1;
+
+	static constexpr int kUninitialized = -1;
+};
+
+struct Compiler {
+	// A stack containing all of our current locals.  The most recently declared
+	// locals will be later in this array.
+	Local locals[kUInt8Count] {};
+
+	// The total number of locals which have been declared.
+	int localCount = 0;
+	int scopeDepth = 0;
+};
+
 static Parser parser;
-static Chunk* compilingChunk;
+static Compiler* current = nullptr;
+static Chunk* compilingChunk = nullptr;
 
 // C++ doesn't have C99 array designated initializers.  Emulate this.  This also
 // hides that TokenType can't be directly converted to an index without a cast.
@@ -182,15 +205,98 @@ static void parsePrecedence(Precedence precedence)
 	return makeConstant(Value::makeObj(copyString(name->start, name->length)->asObj()));
 }
 
+[[nodiscard]] static bool identifiersEqual(Token* a, Token* b)
+{
+	if (a->length != b->length) {
+		return false;
+	}
+
+	return std::memcmp(a, b, a->length) == 0;
+}
+
+[[nodiscard]] static int resolveLocal(Compiler* compiler, Token* name)
+{
+	// Look at the current and upwards scopes for a variable of this name.
+	for (int i = current->localCount - 1; i >= 0; --i) {
+		Local* local = &current->locals[i];
+		if (identifiersEqual(&local->name, name)) {
+			if (local->depth == Local::kUninitialized) {
+				error("Cannot reference a local variable in its own initializer.");
+			}
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+static void addLocal(Token name)
+{
+	// The VM only supports a limited number of locals.
+	if (current->localCount == kUInt8Count) {
+		error("Too many local variables in function.");
+		return;
+	}
+
+	Local* local = &current->locals[current->localCount++];
+	local->name = name;
+	local->depth = Local::kUninitialized;
+}
+
+static void declareVariable()
+{
+	// Variables declared without a scope are global.
+	if (current->scopeDepth == 0) {
+		return;
+	}
+
+	Token* name = &parser.previous;
+
+	// Look for variables with similar names, starting with the current scope.
+	for (int i = current->localCount - 1; i >= 0; --i) {
+
+		Local* local = &current->locals[i];
+		if (local->depth != Local::kUninitialized && local->depth < current->scopeDepth) {
+			// We've proceeded above the new variable's scope.
+			break;
+		}
+
+		if (identifiersEqual(&local->name, name)) {
+			// If the names match, then it's an error.
+			error("Variable with duplicate name");
+		}
+	}
+	addLocal(*name);
+}
+
 // Look for a variable, returning the index in the constants map.
+// If the variable is a local variable, then return 0.
 [[nodiscard]] static uint8_t parseVariable(const char* errorMessage)
 {
 	consume(TokenType::Identifier, errorMessage);
+	declareVariable();
+
+	// The variable is local.
+	if (current->scopeDepth > 0) {
+		return 0;
+	}
+
 	return identifierConstant(&parser.previous);
+}
+
+// Marks the top variable as initialized.
+static void markInitialized()
+{
+	current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 
 static void defineVariable(uint8_t global)
 {
+	// The variable is local.
+	if (current->scopeDepth > 0) {
+		markInitialized();
+		return;
+	}
 	emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
@@ -268,6 +374,22 @@ static void endCompiling()
 #endif
 }
 
+static void beginScope()
+{
+	++current->scopeDepth;
+}
+
+static void endScope()
+{
+	--current->scopeDepth;
+
+	// Pop all variables at the current scope off the stack.
+	while (current->localCount > 0 && current->locals[current->localCount - 1].depth > current->scopeDepth) {
+		emitByte(OP_POP);
+		--current->localCount;
+	}
+}
+
 static void binary([[maybe_unused]] bool canAssign)
 {
 	const TokenType operatorType = parser.previous.type;
@@ -315,6 +437,14 @@ static void binary([[maybe_unused]] bool canAssign)
 static void expression()
 {
 	parsePrecedence(PREC_ASSIGNMENT);
+}
+
+static void block()
+{
+	while (!check(TokenType::Eof) && !check(TokenType::RightBrace)) {
+		declaration();
+	}
+	consume(TokenType::RightBrace, "Expected '}' to terminate block.");
 }
 
 static void varDeclaration()
@@ -403,6 +533,10 @@ static void statement()
 {
 	if (match(TokenType::Print)) {
 		printStatement();
+	} else if (match(TokenType::LeftBrace)) {
+		beginScope();
+		block();
+		endScope();
 	} else {
 		expressionStatement();
 	}
@@ -456,15 +590,30 @@ static void string([[maybe_unused]] bool canAssign)
 	emitConstant(Value::makeString(copyString(withoutQuotes.data(), withoutQuotes.length())));
 }
 
+// Emit the variable and appropriate op code to get or set the variable,
+// depending on if this is an assignment.
 static void namedVariable(Token name, bool canAssign)
 {
-	const uint8_t arg = identifierConstant(&name);
+	// Decide if this is an operation on a global or a local.
+	uint8_t getOp, setOp;
+	int arg = resolveLocal(current, &name);
+	if (arg == -1) {
+		// Global
+		arg = identifierConstant(&name);
+		getOp = OP_GET_GLOBAL;
+		setOp = OP_SET_GLOBAL;
+	} else {
+		getOp = OP_GET_LOCAL;
+		setOp = OP_SET_LOCAL;
+	}
+
+	CL_ASSERT(arg >= 0 && arg <= std::numeric_limits<uint8_t>::max());
 
 	if (canAssign && match(TokenType::Equal)) {
 		expression();
-		emitBytes(OP_SET_GLOBAL, arg);
+		emitBytes(setOp, static_cast<uint8_t>(arg));
 	} else {
-		emitBytes(OP_GET_GLOBAL, arg);
+		emitBytes(getOp, static_cast<uint8_t>(arg));
 	}
 }
 
@@ -555,7 +704,11 @@ bool compile(const std::string& source, Chunk* chunk)
 	// FIXME: This is very unsafe.
 	// Maybe something with iterators over a string might be better?
 	initScanner(source.data());
+
 	compilingChunk = chunk;
+
+	Compiler compiler;
+	current = &compiler;
 
 	// Reset the parser.
 	parser = {};

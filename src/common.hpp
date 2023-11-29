@@ -4,10 +4,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <limits>
 
 #define CL_ASSERT(expr) assert(expr)
 #define CL_UNUSED(expr) (void)(expr)
 #define CL_FATAL(message) do { std::abort(); } while(0)
+
+static constexpr int kUInt8Count = std::numeric_limits<uint8_t>::max() + 1;
 
 #define DEBUG_PRINT_CODE
 #define DEBUG_TRACE_EXECUTION

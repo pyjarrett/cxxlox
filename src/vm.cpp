@@ -215,7 +215,11 @@ InterpretResult VM::run()
 			case OP_POP:
 				CL_UNUSED(pop());
 				break;
-			case OP_GET_GLOBAL:{
+			case OP_GET_LOCAL: {
+				const uint8_t slot = readByte();
+				push(stack[slot]);
+			} break;
+			case OP_GET_GLOBAL: {
 				ObjString* name = readString();
 				Value value {};
 				if (!globals.get(name, &value)) {
@@ -228,6 +232,12 @@ InterpretResult VM::run()
 				ObjString* name = readString();
 				globals.set(name, peek(0));
 				CL_UNUSED(pop());
+			} break;
+			case OP_SET_LOCAL: {
+				const uint8_t slot = readByte();
+				// Assignment is an expression, so leave the assigned value on
+				// the stack.
+				stack[slot] = peek(0);
 			} break;
 			case OP_SET_GLOBAL: {
 				ObjString* name = readString();

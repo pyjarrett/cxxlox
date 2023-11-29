@@ -36,6 +36,17 @@ void disassembleChunk(const Chunk& chunk, const char* name)
 	return offset + 2;
 }
 
+[[nodiscard]] static int32_t byteInstruction(const char* name, const Chunk& chunk, int32_t offset)
+{
+	const auto slot = chunk.code[offset + 1];
+	std::cout << std::format("{:<16} {:4}\n", name, slot);
+	// There's no variable name to print since local variables are only stored
+	// in slots with no associated name.
+
+	// Skip the instruction (byte 1) and the variable slot (byte 2).
+	return offset + 2;
+}
+
 int32_t disassembleInstruction(const Chunk& chunk, int32_t offset)
 {
 	std::cout << std::format("{:04} ", offset);
@@ -72,10 +83,14 @@ int32_t disassembleInstruction(const Chunk& chunk, int32_t offset)
 			return simpleInstruction("OP_PRINT", offset);
 		case OP_POP:
 			return simpleInstruction("OP_POP", offset);
+		case OP_GET_LOCAL:
+			return byteInstruction("OP_GET_LOCAL", chunk, offset);
 		case OP_GET_GLOBAL:
 			return constantInstruction("OP_GET_GLOBAL", chunk, offset);
 		case OP_DEFINE_GLOBAL:
 			return constantInstruction("OP_DEFINE_GLOBAL", chunk, offset);
+		case OP_SET_LOCAL:
+			return byteInstruction("OP_SET_LOCAL", chunk, offset);
 		case OP_SET_GLOBAL:
 			return constantInstruction("OP_SET_GLOBAL", chunk, offset);
 		case OP_RETURN:
