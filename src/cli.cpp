@@ -47,8 +47,9 @@ void repl()
 	}
 
 	const auto numBytes = file.tellg();
+	file.seekg(std::ios_base::beg);
 	out.reserve(size_t(numBytes));
-	out.assign(std::istream_iterator<char>(file), std::istream_iterator<char>());
+	out.assign(std::istreambuf_iterator<char>(file), {});
 	return true;
 }
 
