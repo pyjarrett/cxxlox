@@ -14,6 +14,7 @@ void disassembleChunk(const Chunk& chunk, const char* name)
 	while (offset < chunk.code.count()) {
 		offset = disassembleInstruction(chunk, offset);
 	}
+	std::cout << '\n';
 }
 
 /// Print a simple instruction and move to the next byte offset.

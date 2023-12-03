@@ -159,16 +159,17 @@ static void concatenate()
 
 InterpretResult VM::run()
 {
+	std::cout << "== execution ==\n";
 	while (true) {
 #ifdef DEBUG_TRACE_EXECUTION
 		{
-			std::cout << "        ";
+			std::cout << "             [*]";
 			for (Value* slot = stack; slot != stackTop; ++slot) {
 				std::cout << '[';
 				printValue(*slot);
 				std::cout << ']';
 			}
-			std::cout << '\n';
+			std::cout << "<top>\n";
 			const auto offset = int32_t(std::distance(&chunk->code[0], ip));
 			CL_UNUSED(disassembleInstruction(*chunk, offset));
 		}
