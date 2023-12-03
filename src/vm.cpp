@@ -76,6 +76,12 @@ uint8_t VM::readByte()
 	return *ip++;
 }
 
+uint16_t VM::readShort()
+{
+	ip += 2;
+	return static_cast<uint16_t>(ip[-1] | (ip[-2] << 8));
+}
+
 Value VM::readConstant()
 {
 	CL_ASSERT(chunk);
@@ -170,7 +176,7 @@ InterpretResult VM::run()
 				std::cout << ']';
 			}
 			std::cout << "<top>\n";
-			const auto offset = int32_t(std::distance(&chunk->code[0], ip));
+			const auto offset = int32_t(std::distance((const uint8_t*)&chunk->code[0], ip));
 			CL_UNUSED(disassembleInstruction(*chunk, offset));
 		}
 #endif
@@ -178,6 +184,16 @@ InterpretResult VM::run()
 		const uint8_t instruction = readByte();
 		// Dispatch (decoding) the instruction.
 		switch (instruction) {
+			case OP_JUMP: {
+				const uint16_t offset = readShort();
+				ip += offset;
+			} break;
+			case OP_JUMP_IF_FALSE: {
+				const uint16_t offset = readShort();
+				if (isFalsey(peek(0))) {
+					ip += offset;
+				}
+			} break;
 			case OP_RETURN:
 				// for now, end execution
 				return InterpretResult::Ok;

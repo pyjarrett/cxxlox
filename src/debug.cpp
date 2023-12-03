@@ -48,6 +48,15 @@ void disassembleChunk(const Chunk& chunk, const char* name)
 	return offset + 2;
 }
 
+[[nodiscard]] static int32_t jumpInstruction(const char* name, int sign, const Chunk& chunk, int32_t offset)
+{
+	const uint16_t jump = (chunk.code[offset + 1] << 8) | chunk.code[offset + 2];
+	std::cout << std::format("{:<16} {:4} -> {:4}\n", name, offset, offset + 3 + sign * jump);
+
+	// Skip the jump instruction (byte 1) and then the two byte jump offset (bytes 2 and 3).
+	return offset + 3;
+}
+
 int32_t disassembleInstruction(const Chunk& chunk, int32_t offset)
 {
 	std::cout << std::format("{:04} ", offset);
@@ -94,6 +103,10 @@ int32_t disassembleInstruction(const Chunk& chunk, int32_t offset)
 			return byteInstruction("OP_SET_LOCAL", chunk, offset);
 		case OP_SET_GLOBAL:
 			return constantInstruction("OP_SET_GLOBAL", chunk, offset);
+		case OP_JUMP:
+			return jumpInstruction("OP_JUMP", 1, chunk, offset);
+		case OP_JUMP_IF_FALSE:
+			return jumpInstruction("OP_JUMP_IF_FALSE", 1, chunk, offset);
 		case OP_RETURN:
 			return simpleInstruction("OP_RETURN", offset);
 		case OP_EQUAL:

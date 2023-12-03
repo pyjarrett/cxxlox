@@ -25,6 +25,7 @@ struct VM {
 	static void reset();
 
 	[[nodiscard]] uint8_t readByte();
+	[[nodiscard]] uint16_t readShort();
 	[[nodiscard]] Value readConstant();
 	[[nodiscard]] ObjString* readString();
 

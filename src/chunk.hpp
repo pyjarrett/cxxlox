@@ -17,6 +17,8 @@ enum OpCode : uint8_t
 	OP_NOT,
 	OP_NEGATE,
 	OP_PRINT,
+	OP_JUMP,
+	OP_JUMP_IF_FALSE,
 	OP_POP,
 	OP_GET_LOCAL,
 	OP_GET_GLOBAL,

@@ -356,6 +356,19 @@ static void emitBytes(uint8_t byte1, uint8_t byte2)
 	emitByte(byte2);
 }
 
+// Emit a jump instruction and then return the offset of the address to jump to
+// so that it can be patched once that location is known.
+static int emitJump(uint8_t byte)
+{
+	emitByte(byte);
+
+	// Jump addresses are 2 bytes (16 bits).
+	emitByte(0xFF);
+	emitByte(0xFF);
+
+	return currentChunk()->code.count() - 2;
+}
+
 [[nodiscard]] static uint8_t makeConstant(Value value)
 {
 	const int constant = currentChunk()->addConstant(value);
@@ -368,6 +381,20 @@ static void emitBytes(uint8_t byte1, uint8_t byte2)
 static void emitConstant(Value value)
 {
 	emitBytes(OP_CONSTANT, makeConstant(value));
+}
+
+// Patch a jump from the given offset to the next instruction to be emitted.
+static void patchJump(int offset)
+{
+	// The location being jumped from is the
+	const int target = currentChunk()->code.count() - offset - 2;
+
+	CL_ASSERT(target > 0);
+
+	// TODO: This feels weird putting the larger byte in first on little-endian
+	// I'd expect these to be swapped.
+	currentChunk()->code[offset] = (target >> 8) & 0xFF;
+	currentChunk()->code[offset + 1] = target & 0xFF;
 }
 
 static void emitReturn()
@@ -525,6 +552,42 @@ static void expressionStatement()
 	emitByte(OP_POP);
 }
 
+// `if` <*> `(` condition `)`
+//     statement
+// `else`
+//     statement
+//
+// Push condition onto stack
+// Conditional jump if false ------->+
+// Pop condition                     |
+// Then statement                    |
+// Jump over else branch ---->+      |
+// <------------------------- | -----+
+// Pop condition              |
+// Else statements            |
+// <--------------------------+
+//
+static void ifStatement()
+{
+	// Starts immediately after `if`.
+	consume(TokenType::LeftParen, "Expected a '(' after `if`.");
+	expression();
+	consume(TokenType::RightParen, "Expected a ')' after `if` condition.");
+
+	const int thenJump = emitJump(OP_JUMP_IF_FALSE);
+	emitByte(OP_POP);
+	statement();
+
+	const int elseJump = emitJump(OP_JUMP);
+	patchJump(thenJump);
+	emitByte(OP_POP);
+
+	if (match(TokenType::Else)) {
+		statement();
+	}
+	patchJump(elseJump);
+}
+
 static void declaration()
 {
 	if (match(TokenType::Var)) {
@@ -544,6 +607,8 @@ static void statement()
 {
 	if (match(TokenType::Print)) {
 		printStatement();
+	} else if (match(TokenType::If)) {
+		ifStatement();
 	} else if (match(TokenType::LeftBrace)) {
 		beginScope();
 		block();

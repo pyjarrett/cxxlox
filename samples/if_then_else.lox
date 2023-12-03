@@ -1,0 +1,13 @@
+if (5 < 10) {
+    print "5 < 10";
+}
+else {
+    print "COMPILER ERROR";
+}
+
+if (5 > 10) {
+    print "COMPILER ERROR";
+}
+else {
+    print "5 is not greater than 10";
+}

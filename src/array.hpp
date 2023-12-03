@@ -26,6 +26,7 @@ public:
 	[[nodiscard]] int32_t count() const { return count_; }
 
 	const T& operator[](int32_t) const;
+	T& operator[](int32_t);
 
 private:
 	/// The number of used elements.
@@ -71,6 +72,14 @@ void Array<T>::free()
 
 template <typename T>
 const T& Array<T>::operator[](int32_t index) const
+{
+	CL_ASSERT(count_ <= capacity_);
+	CL_ASSERT(index >= 0 && index < count_);
+	return data[index];
+}
+
+template <typename T>
+T& Array<T>::operator[](int32_t index)
 {
 	CL_ASSERT(count_ <= capacity_);
 	CL_ASSERT(index >= 0 && index < count_);
