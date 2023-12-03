@@ -134,7 +134,7 @@ template <typename Op>
 	}
 	const auto b = vm.pop().toNumber();
 	const auto a = vm.pop().toNumber();
-	vm.push(Value::makeNumber(op(a, b)));
+	vm.push(op(a, b));
 	return true;
 }
 
@@ -184,22 +184,22 @@ InterpretResult VM::run()
 			case OP_ADD:
 				if (isObjType(peek(0), ObjType::String) && isObjType(peek(1), ObjType::String)) {
 					concatenate();
-				} else if (!binaryOp([](auto a, auto b) { return a + b; })) {
+				} else if (!binaryOp([](auto a, auto b) { return Value::makeNumber(a + b); })) {
 					return InterpretResult::RuntimeError;
 				}
 				break;
 			case OP_SUBTRACT:
-				if (!binaryOp([](auto a, auto b) { return a - b; })) {
+				if (!binaryOp([](auto a, auto b) { return Value::makeNumber(a - b); })) {
 					return InterpretResult::RuntimeError;
 				}
 				break;
 			case OP_MULTIPLY:
-				if (!binaryOp([](auto a, auto b) { return a * b; })) {
+				if (!binaryOp([](auto a, auto b) { return Value::makeNumber(a * b); })) {
 					return InterpretResult::RuntimeError;
 				}
 				break;
 			case OP_DIVIDE:
-				if (!binaryOp([](auto a, auto b) { return a / b; })) {
+				if (!binaryOp([](auto a, auto b) { return Value::makeNumber(a / b); })) {
 					return InterpretResult::RuntimeError;
 				}
 				break;
@@ -270,12 +270,12 @@ InterpretResult VM::run()
 				break;
 			}
 			case OP_GREATER:
-				if (!binaryOp([](auto a, auto b) { return a > b; })) {
+				if (!binaryOp([](auto a, auto b) { return Value::makeBool(a > b); })) {
 					return InterpretResult::RuntimeError;
 				}
 				break;
 			case OP_LESS:
-				if (!binaryOp([](auto a, auto b) { return a < b; })) {
+				if (!binaryOp([](auto a, auto b) { return Value::makeBool(a < b); })) {
 					return InterpretResult::RuntimeError;
 				}
 				break;
