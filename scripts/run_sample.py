@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import subprocess
+import sys
 
 
 def build_root() -> Path:
@@ -53,12 +54,17 @@ def main():
     """
     Builds the bytecode vm and then runs a sample program.
     """
+    if len(sys.argv) < 2:
+        print("Expected a file name to run.")
+        print(f"Usage {sys.argv[0]} [filename.lox]")
+        sys.exit(1)
+
+    program_name: str = Path(sys.argv[1])
+
     root_dir: Path = build_root()
     print(f"Build root is {root_dir}")
 
     build_bytecode_vm(root_dir)
-
-    program_name = r"D:\dev\cpp\cxxlox\samples\nested_scopes.lox"
 
     # TODO: Allow running under different program configurations: debug, release, etc.
     print(run_program(program_name).decode("utf-8"))
