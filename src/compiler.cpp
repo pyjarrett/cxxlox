@@ -143,10 +143,21 @@ static void errorAt(const Token& token, const char* message)
 	} else if (token.type == TokenType::Error) {
 		// some sort of error token...
 	} else {
-		std::cerr << " at " << token.view() << '\n';
+		std::cerr << " at " << token.view();
 	}
 
 	std::cerr << ": " << message << '\n';
+
+	// Deviation from Lox to provide more in-depth error analysis.
+	constexpr auto kMaxContextLength = 80;
+	const char* cursor = token.start + token.length;
+	int contextLength = token.length;
+	for (int i = 0; i < kMaxContextLength && *cursor != '\0'; ++i) {
+		++cursor;
+		++contextLength;
+	}
+	std::cerr << "Context following error:\n"
+	  	<< "    " << std::string_view(token.start, contextLength) << '\n';
 
 	parser.hadError = true;
 }
