@@ -288,7 +288,8 @@ InterpretResult VM::run()
 
 InterpretResult VM::interpret(const std::string& source)
 {
-	Chunk compiledChunk;
+	// FIXME: This isn't the best way to handle this escaping value.
+	static Chunk compiledChunk;
 
 	if (!compile(source, &compiledChunk)) {
 		return InterpretResult::CompileError;
