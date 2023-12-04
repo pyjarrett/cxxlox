@@ -1,0 +1,21 @@
+{
+    var x = 10;
+    var y = 20;
+    var z = 30;
+
+    {
+        var a = 5;
+        var b = 7;
+
+        {
+            var c = 9;
+        }
+
+        var d = 11;
+    }
+
+    {
+        var s = 1;
+        var t = 0;
+    }
+}

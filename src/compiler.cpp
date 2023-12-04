@@ -222,7 +222,7 @@ static void parsePrecedence(Precedence precedence)
 		return false;
 	}
 
-	return std::memcmp(a, b, a->length) == 0;
+	return std::memcmp(a->start, b->start, a->length) == 0;
 }
 
 [[nodiscard]] static int resolveLocal(Compiler* compiler, Token* name)
