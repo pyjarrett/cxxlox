@@ -356,8 +356,24 @@ static void emitBytes(uint8_t byte1, uint8_t byte2)
 	emitByte(byte2);
 }
 
+// A backwards jump back to the offset of a loop start.
+static void emitLoop(int loopStart)
+{
+	emitByte(OP_LOOP);
+
+	// 2 to skip over the two offset bytes of the OP_LOOP instruction
+	const int offset = currentChunk()->code.count() - loopStart + 2;
+	if (offset > std::numeric_limits<uint16_t>::max()) {
+		error("Loop body is too large.");
+	}
+
+	emitByte((offset >> 8) & 0xFF);
+	emitByte(offset & 0xFF);
+}
+
 // Emit a jump instruction and then return the offset of the address to jump to
-// so that it can be patched once that location is known.
+// so that it can be patched once that location is known.  "Jumps" are only
+// forwards.
 static int emitJump(uint8_t byte)
 {
 	emitByte(byte);
@@ -459,13 +475,13 @@ static void binary([[maybe_unused]] bool canAssign)
 			emitByte(OP_LESS);
 			break;
 		case TokenType::LessEqual:
-			emitBytes(OP_EQUAL, OP_NOT);
+			emitBytes(OP_GREATER, OP_NOT);
 			break;
 		case TokenType::Greater:
 			emitByte(OP_GREATER);
 			break;
 		case TokenType::GreaterEqual:
-			emitBytes(OP_EQUAL, OP_NOT);
+			emitBytes(OP_LESS, OP_NOT);
 			break;
 		default:
 			CL_ASSERT(false); // Unknown operator type.
@@ -588,6 +604,33 @@ static void ifStatement()
 	patchJump(elseJump);
 }
 
+// `while` `(` expression `)`
+//    statement
+//
+// Evaluate condition  <-----------------+
+// Skip loop if condition not met--->+   |
+// Pop condition                     |   |
+// Execute the loop                  |   |
+// Jump to condition evaluation ---> | ->+
+// Pop condition <-------------------+
+//
+static void whileStatement()
+{
+	const int loopStart = currentChunk()->code.count();
+
+	consume(TokenType::LeftParen, "Expected '(' after while.");
+	expression();
+	consume(TokenType::RightParen, "Expected ')' after while condition.");
+
+	const int exitJump = emitJump(OP_JUMP_IF_FALSE);
+	emitByte(OP_POP);
+	statement();
+	emitLoop(loopStart);
+
+	patchJump(exitJump);
+	emitByte(OP_POP);
+}
+
 static void declaration()
 {
 	if (match(TokenType::Var)) {
@@ -609,6 +652,8 @@ static void statement()
 		printStatement();
 	} else if (match(TokenType::If)) {
 		ifStatement();
+	} else if (match(TokenType::While)) {
+		whileStatement();
 	} else if (match(TokenType::LeftBrace)) {
 		beginScope();
 		block();

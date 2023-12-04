@@ -194,6 +194,10 @@ InterpretResult VM::run()
 					ip += offset;
 				}
 			} break;
+			case OP_LOOP: {
+				const uint16_t offset = readShort();
+				ip -= offset;
+			} break;
 			case OP_RETURN:
 				// for now, end execution
 				return InterpretResult::Ok;
