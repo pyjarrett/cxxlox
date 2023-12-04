@@ -1,7 +1,6 @@
 #include "value.hpp"
 
 #include "object.hpp"
-
 #include <cstring>
 #include <iostream>
 
@@ -39,8 +38,7 @@ bool Value::operator==(const Value& rhs) const
 			return as.number == rhs.as.number;
 		case ValueType::Nil:
 			return true;
-		case ValueType::Obj:
-		{
+		case ValueType::Obj: {
 			if (!this->isObj() || !rhs.isObj()) {
 				return false;
 			}

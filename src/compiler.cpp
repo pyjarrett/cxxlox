@@ -157,7 +157,7 @@ static void errorAt(const Token& token, const char* message)
 		++contextLength;
 	}
 	std::cerr << "Context following error:\n"
-	  	<< "    " << std::string_view(token.start, contextLength) << '\n';
+			  << "    " << std::string_view(token.start, contextLength) << '\n';
 
 	parser.hadError = true;
 }

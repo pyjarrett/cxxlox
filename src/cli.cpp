@@ -4,7 +4,6 @@
 #include "common.hpp"
 #include "debug.hpp"
 #include "vm.hpp"
-
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -34,7 +33,8 @@ void repl()
 	}
 }
 
-[[nodiscard]] bool readFile(const char* fileName, std::string& out) {
+[[nodiscard]] bool readFile(const char* fileName, std::string& out)
+{
 	if (!fileName) {
 		return false;
 	}
