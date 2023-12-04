@@ -568,6 +568,84 @@ static void expressionStatement()
 	emitByte(OP_POP);
 }
 
+// Outputs the increment step before the loop body due to limitations of being
+// as single-pass compiler -- it can't hold onto the increment step and output
+// it later, like it could if it could keep it in an AST.
+//
+// `for` `(` initializer? `;` condition? `;` increment `)`
+//     statement
+//
+// Begin scope (if initializer present)
+// Create variable from declaration (if present)
+// Run initializer (if present)
+// Push condition <---------------------+
+// Exit loop if false ----------------- | ----->+
+// Pop condition                        |       |
+//                                      |       |
+// Body jump (if increment)-->+         |       |
+//                            |         |       |
+// Increment (if present)<--- | ----+   |       |
+// Pop increment result       |     |   |       |
+// Jump to condition check -------- | --+       |
+//                            |     |           |
+// Statement <----------------+     |           |
+// Jump to increment -------------->+           |
+// Pop condition <------------------------------+
+// End scope (if initializer present)
+//
+static void forStatement()
+{
+	beginScope();
+	consume(TokenType::LeftParen, "Expected '(' after `for`.");
+
+	// Variable declaration and/or initializer
+	if (match(TokenType::Var)) {
+		varDeclaration();
+	} else if (match(TokenType::Semicolon)) {
+		// No initializer.
+	} else {
+		expressionStatement();
+	}
+
+	// Condition
+	int loopStart = currentChunk()->code.count();
+	int exitJump = -1;
+	if (!match(TokenType::Semicolon)) {
+		expression();
+		consume(TokenType::Semicolon, "Expected ';' after condition.");
+		exitJump = emitJump(OP_JUMP_IF_FALSE);
+		emitByte(OP_POP);
+	}
+
+	// Increment
+	if (!match(TokenType::RightParen)) {
+		// Skip increment on initial loop pass.
+		const int bodyJump = emitJump(OP_JUMP);
+		const int increment = currentChunk()->code.count();
+		expression();
+		emitByte(OP_POP);
+		consume(TokenType::RightParen, "Expected ')' after `for` clauses.");
+
+		// Start the next loop.
+		emitLoop(loopStart);
+
+		// The body should jump to the increment only if there is one.
+		loopStart = increment;
+		patchJump(bodyJump);
+	}
+
+	statement();
+	emitLoop(loopStart);
+
+	if (exitJump != -1) {
+		patchJump(exitJump);
+
+		// Pop the condition.
+		emitByte(OP_POP);
+	}
+	endScope();
+}
+
 // `if` <*> `(` condition `)`
 //     statement
 // `else`
@@ -650,6 +728,8 @@ static void statement()
 {
 	if (match(TokenType::Print)) {
 		printStatement();
+	} else if (match(TokenType::For)) {
+		forStatement();
 	} else if (match(TokenType::If)) {
 		ifStatement();
 	} else if (match(TokenType::While)) {

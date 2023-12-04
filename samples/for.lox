@@ -1,0 +1,13 @@
+for (var i = 0; i < 4; i = i + 1)
+{
+    print i;
+}
+
+var done = false;
+var j = 0;
+for (; !done;)
+{
+    j = j + 1;
+    done = j > 5;
+    print j;
+}
