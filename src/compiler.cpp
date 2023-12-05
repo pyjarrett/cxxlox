@@ -63,10 +63,11 @@ struct Local {
 
 	// The scope depth of this variable.  A depth of -1 means that it is
 	// declared, but not yet initialized (defined).
-	int depth = -1;
+	int32_t depth = -1;
 
-	static constexpr int kUninitialized = -1;
+	static constexpr int32_t kUninitialized = -1;
 };
+static_assert(sizeof(Local) == 32);
 
 struct Compiler {
 	// A stack containing all of our current locals.  The most recently declared
@@ -151,7 +152,7 @@ static void errorAt(const Token& token, const char* message)
 	// Deviation from Lox to provide more in-depth error analysis.
 	constexpr auto kMaxContextLength = 80;
 	const char* cursor = token.start + token.length;
-	int contextLength = token.length;
+	uint32_t contextLength = token.length;
 	for (int i = 0; i < kMaxContextLength && *cursor != '\0'; ++i) {
 		++cursor;
 		++contextLength;

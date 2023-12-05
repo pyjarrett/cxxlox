@@ -65,9 +65,9 @@ void printObj(Obj* obj);
 [[nodiscard]] bool isObjType(Value value, ObjType type);
 
 // Copies a string into an ObjString with ownership of the copied memory.
-[[nodiscard]] ObjString* copyString(const char* chars, int length);
+[[nodiscard]] ObjString* copyString(const char* chars, uint32_t length);
 
 /// Take ownership of the given string.
-[[nodiscard]] ObjString* takeString(char* chars, int length);
+[[nodiscard]] ObjString* takeString(char* chars, uint32_t length);
 
 } // namespace cxxlox

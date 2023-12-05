@@ -38,6 +38,7 @@ private:
 	/// Dynamically allocated array of data.
 	T* data = nullptr;
 };
+static_assert(sizeof(Array<char>) == 16);
 
 template <typename T>
 Array<T>::~Array()

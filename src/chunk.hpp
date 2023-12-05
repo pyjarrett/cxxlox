@@ -51,5 +51,6 @@ struct Chunk {
 	Array<Value> constants;
 	Array<int32_t> lines;
 };
+static_assert(sizeof(Chunk) == 3 * sizeof(Array<char>));
 
 } // namespace cxxlox

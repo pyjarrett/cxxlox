@@ -40,7 +40,7 @@ struct VM {
 
 	void track(Obj* obj);
 	void intern(ObjString* str);
-	ObjString* lookup(const char* chars, int32_t length, uint32_t hash) const;
+	ObjString* lookup(const char* chars, uint32_t length, uint32_t hash) const;
 
 private:
 	VM();

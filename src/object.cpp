@@ -27,7 +27,7 @@ bool isObjType(Value value, ObjType type)
 }
 
 // FNV-1 hash
-[[nodiscard]] static uint32_t hashString(const char* chars, int length)
+[[nodiscard]] static uint32_t hashString(const char* chars, uint32_t length)
 {
 	CL_ASSERT(chars != nullptr);
 	uint32_t hash = 2166136261u;
@@ -40,7 +40,7 @@ bool isObjType(Value value, ObjType type)
 
 // Creating a string, taking ownership of the memory referred to by the passed
 // character pointer.
-[[nodiscard]] ObjString* allocateString(char* chars, int length, uint32_t hash)
+[[nodiscard]] ObjString* allocateString(char* chars, uint32_t length, uint32_t hash)
 {
 	ObjString* str = allocateObj<ObjString>(ObjType::String);
 	str->chars = chars;
@@ -50,7 +50,7 @@ bool isObjType(Value value, ObjType type)
 	return str;
 }
 
-ObjString* copyString(const char* chars, int length)
+ObjString* copyString(const char* chars, uint32_t length)
 {
 	const uint32_t hash = hashString(chars, length);
 	if (ObjString* interned = VM::instance().lookup(chars, length, hash)) {
@@ -65,7 +65,7 @@ ObjString* copyString(const char* chars, int length)
 	return allocateString(copiedChars, length, hash);
 }
 
-ObjString* takeString(char* chars, int length)
+ObjString* takeString(char* chars, uint32_t length)
 {
 	const uint32_t hash = hashString(chars, length);
 	if (ObjString* interned = VM::instance().lookup(chars, length, hash)) {

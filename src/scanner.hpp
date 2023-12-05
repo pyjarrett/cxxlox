@@ -1,5 +1,7 @@
 #pragma once
 
+#include "common.hpp"
+
 #include <string_view>
 
 namespace cxxlox {
@@ -11,10 +13,10 @@ struct Scanner {
 	/// Current cursor position (either at `start`, or after `start`)
 	const char* current = nullptr;
 
-	int line = 1;
+	uint32_t line = 1;
 };
 
-enum class TokenType
+enum class TokenType : uint8_t
 {
 	LeftParen,
 	RightParen,
@@ -73,19 +75,22 @@ enum class TokenType
 /// A small, value-based type to pass around which can be consumed by the parse
 /// as an atomic element within the parsing process.
 struct Token {
-	TokenType type = TokenType::Eof;
-
 	// Lexeme
 	const char* start = nullptr;
-	size_t length = 0;
+	uint32_t length = 0;
 
 	// Line number where this appears.
-	int line = 0;
+	uint32_t line = 0;
+
+	TokenType type = TokenType::Eof;
 
 	[[nodiscard]] std::string_view view() const {
 		return std::string_view(start, length);
 	}
 };
+// TODO: int could change in size, replace with int32_t.
+static_assert(sizeof(Token) == 24);
+static_assert(alignof(Token) == 8);
 
 void initScanner(const char* source);
 [[nodiscard]] Token scanToken();

@@ -96,10 +96,10 @@ static void skipWhitespace()
 [[nodiscard]] static Token makeToken(TokenType type)
 {
 	return Token {
-		.type = type,
 		.start = scanner.start,
-		.length = static_cast<size_t>(currentLexemeSize()),
+		.length = static_cast<uint32_t>(currentLexemeSize()),
 		.line = scanner.line,
+		.type = type,
 	};
 }
 
@@ -108,10 +108,10 @@ static void skipWhitespace()
 [[nodiscard]] static Token errorToken(const char* message)
 {
 	return Token {
-		.type = TokenType::Error,
 		.start = message,
-		.length = strlen(message), // FIXME: Shouldn't use this, just to get it working.
+		.length = static_cast<uint32_t>(strlen(message)), // FIXME: Shouldn't use this, just to get it working.
 		.line = scanner.line,
+		.type = TokenType::Error,
 	};
 }
 
