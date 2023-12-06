@@ -1,11 +1,11 @@
 #include "object.hpp"
 
 #include "vm.hpp"
-
 #include <iostream>
 
 namespace cxxlox {
 
+// Deviation: using destructor instead of `freeObject`
 ObjString::~ObjString()
 {
 	delete[] chars;
@@ -14,16 +14,29 @@ ObjString::~ObjString()
 void printObj(Obj* obj)
 {
 	switch (obj->type) {
+		case ObjType::Function: {
+			ObjFunction* fn = reinterpret_cast<ObjFunction*>(obj);
+			std::cout << "<fn " << fn->name->chars << ">\n";
+		}
 		case ObjType::String: {
 			ObjString* str = reinterpret_cast<ObjString*>(obj);
 			std::cout << str->chars;
-		}
+		} break;
 	}
 }
 
 bool isObjType(Value value, ObjType type)
 {
 	return value.isObj() && value.toObj()->type == type;
+}
+
+// Deviation: was `newFunction`
+ObjFunction* makeFunction()
+{
+	ObjFunction* function = allocateObj<ObjFunction>(ObjType::Function);
+	function->arity = 0;
+	function->name = nullptr;
+	return function;
 }
 
 // FNV-1 hash

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "chunk.hpp"
 #include "common.hpp"
 #include "value.hpp"
 #include "vm.hpp"
@@ -10,8 +11,10 @@
 
 namespace cxxlox {
 
+// Deviation: was OBJ_FUNCTION, OBJ_STRING
 enum class ObjType
 {
+	Function,
 	String,
 };
 
@@ -23,6 +26,24 @@ struct Obj {
 		CL_ASSERT(type == ObjType::String);
 		return reinterpret_cast<ObjString*>(this);
 	}
+};
+
+struct ObjFunction {
+	Obj obj;
+	int32_t arity;
+	Chunk chunk;
+	ObjString* name;
+
+	ObjFunction() = default;
+	~ObjFunction() = default;
+
+	// Should be dealing with pointers to ObjFunction only, so prohibit moving
+	// and copying.
+	ObjFunction(const ObjFunction&) = delete;
+	ObjFunction& operator=(const ObjFunction&) = delete;
+
+	ObjFunction(ObjFunction&&) = delete;
+	ObjFunction& operator=(ObjFunction&&) = delete;
 };
 
 // TODO: Eventually this might also take an arg pack.
@@ -63,6 +84,8 @@ struct ObjString {
 void printObj(Obj* obj);
 
 [[nodiscard]] bool isObjType(Value value, ObjType type);
+
+[[nodiscard]] ObjFunction* makeFunction();
 
 // Copies a string into an ObjString with ownership of the copied memory.
 [[nodiscard]] ObjString* copyString(const char* chars, uint32_t length);
