@@ -17,6 +17,6 @@ static constexpr int kUInt8Count = std::numeric_limits<uint8_t>::max() + 1;
 
 namespace cxxlox {
 
-[[nodiscard]] int32_t growCapacity(int32_t previousCapacity);
+[[nodiscard]] int32_t growCapacity(int32_t previousCapacity) noexcept;
 
 } // namespace cxxlox
