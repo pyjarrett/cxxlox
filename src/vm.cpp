@@ -263,15 +263,18 @@ InterpretResult VM::run()
 			} break;
 			case OP_RETURN: {
 				Value result = pop();
+				// Deviation: no need to update cached `frame` since hidden by function,
+				// but need to capture it here to prevent using the parent frame after
+				// frame count change.
+				CallFrame* lastFrame = currentFrame();
 				--frameCount;
 				if (frameCount == 0) {
 					CL_UNUSED(pop());
 					return InterpretResult::Ok;
 				}
-				// Remove the current stack frame.
-				stackTop = currentFrame()->slots;
+				// Remove the last stack frame.
+				stackTop = lastFrame->slots;
 				push(result);
-				// Deviation: no need to update cached `frame`
 			} break;
 			case OP_ADD:
 				if (isObjType(peek(0), ObjType::String) && isObjType(peek(1), ObjType::String)) {
