@@ -10,6 +10,7 @@ namespace cxxlox {
 
 struct Chunk;
 struct Obj;
+struct ObjFunction;
 
 enum class InterpretResult
 {
@@ -18,11 +19,28 @@ enum class InterpretResult
 	RuntimeError,
 };
 
+// An interpreted function call frame.  Native functions called from Lox do
+// not use this.
+struct CallFrame {
+	ObjFunction* function;
+
+	// The **next** instruction to be executed.
+	// "Instruction pointer" ("program counter").
+	uint8_t* ip;
+
+	// Points to the base argument of the called function.  This will be a slice
+	// of the VM value stack.
+	Value* slots;
+};
+
 struct VM {
-	static constexpr int32_t kStackMax = 256;
+	static constexpr int32_t kFramesMax = 64;
+	static constexpr int32_t kStackMax = kFramesMax * kUInt8Count;
 
 	static VM& instance();
 	static void reset();
+
+	[[nodiscard]] inline CallFrame* currentFrame();
 
 	[[nodiscard]] uint8_t readByte();
 	[[nodiscard]] uint16_t readShort();
@@ -51,11 +69,9 @@ private:
 	void resetStack();
 	void freeObjects();
 
-	Chunk* chunk = nullptr;
-
-	/// The next instruction to be executed.
-	/// "Instruction pointer" ("program counter").
-	const uint8_t* ip = nullptr;
+	/// The current state of the active chain of program function calls.
+	CallFrame frames[kFramesMax];
+	int32_t frameCount = 0;
 
 	/// Stack used to store values used as intermediate results and operands.
 	Value stack[kStackMax] = {};

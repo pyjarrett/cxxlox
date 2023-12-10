@@ -16,6 +16,7 @@ enum class ValueType
 
 // Object "base class" (for lack of a better term)
 struct Obj;
+struct ObjFunction;
 struct ObjString;
 
 // Could be done with std::variant.
@@ -53,6 +54,13 @@ struct Value {
 	{
 		Value v {.type = ValueType::Obj};
 		v.as.obj = obj;
+		return v;
+	}
+
+	[[nodiscard]] static Value makeFunction(ObjFunction* fn)
+	{
+		Value v {.type = ValueType::Obj};
+		v.as.obj = reinterpret_cast<Obj*>(fn);
 		return v;
 	}
 

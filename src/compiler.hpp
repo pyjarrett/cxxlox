@@ -4,8 +4,8 @@
 
 namespace cxxlox {
 
-struct Chunk;
+struct ObjFunction;
 
-[[nodiscard]] bool compile(const std::string& source, Chunk* chunk);
+[[nodiscard]] ObjFunction* compile(const std::string& source);
 
 }

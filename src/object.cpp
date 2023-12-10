@@ -16,8 +16,15 @@ void printObj(Obj* obj)
 	switch (obj->type) {
 		case ObjType::Function: {
 			ObjFunction* fn = reinterpret_cast<ObjFunction*>(obj);
-			std::cout << "<fn " << fn->name->chars << ">\n";
-		}
+
+			if (fn->name == nullptr) {
+				// Top level function
+				std::cout << "<script>";
+			}
+			else {
+				std::cout << "<fn " << fn->name->chars << '>';
+			}
+		} break;
 		case ObjType::String: {
 			ObjString* str = reinterpret_cast<ObjString*>(obj);
 			std::cout << str->chars;

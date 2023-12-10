@@ -69,7 +69,32 @@ struct Local {
 };
 static_assert(sizeof(Local) == 32);
 
+// Indicate whether the compiler is currently in a top level scope, or in a
+// function's scope.
+enum class FunctionType
+{
+	Function,
+
+	// Top level.
+	Script
+};
+
+// Tracks compilation of the top level and each Lox function.
 struct Compiler {
+	explicit Compiler(FunctionType type) : type(type)
+	{
+		function = makeFunction();
+
+		// Allocate a local for use by the compiler.
+		Local* local = &locals[localCount++];
+		local->depth = 0;
+		local->name.start = ""; // So the user can't refer to it.
+		local->name.length = 0;
+	}
+
+	ObjFunction* function = nullptr;
+	FunctionType type = FunctionType::Script;
+
 	// A stack containing all of our current locals.  The most recently declared
 	// locals will be later in this array.
 	Local locals[kUInt8Count] {};
@@ -81,7 +106,6 @@ struct Compiler {
 
 static Parser parser;
 static Compiler* current = nullptr;
-static Chunk* compilingChunk = nullptr;
 
 // C++ doesn't have C99 array designated initializers.  Emulate this.  This also
 // hides that TokenType can't be directly converted to an index without a cast.
@@ -343,7 +367,7 @@ static void consume(TokenType type, const char* message)
 
 [[nodiscard]] Chunk* currentChunk()
 {
-	return compilingChunk;
+	return &current->function->chunk;
 }
 
 static void emitByte(uint8_t byte)
@@ -419,14 +443,16 @@ static void emitReturn()
 	emitByte(OP_RETURN);
 }
 
-static void endCompiling()
+static ObjFunction* endCompiler()
 {
 	emitReturn();
+	ObjFunction* function = current->function;
 #ifdef DEBUG_PRINT_CODE
 	if (!parser.hadError) {
-		disassembleChunk(*currentChunk(), "code");
+		disassembleChunk(*currentChunk(), function->name != nullptr ? function->name->chars : "<script>");
 	}
 #endif
+	return function;
 }
 
 static void beginScope()
@@ -899,17 +925,14 @@ static const ParseRule* getRule(TokenType type)
 	return rules[type];
 }
 
-bool compile(const std::string& source, Chunk* chunk)
+ObjFunction* compile(const std::string& source)
 {
-	CL_ASSERT(chunk);
-
 	// FIXME: This is very unsafe.
 	// Maybe something with iterators over a string might be better?
 	initScanner(source.data());
 
-	compilingChunk = chunk;
-
-	Compiler compiler;
+	// FIXME: This is a horribly bad idea.
+	static Compiler compiler(FunctionType::Script);
 	current = &compiler;
 
 	// Reset the parser.
@@ -921,8 +944,9 @@ bool compile(const std::string& source, Chunk* chunk)
 		declaration();
 	}
 	consume(TokenType::Eof, "Expected end of expression.");
-	endCompiling();
-	return !parser.hadError;
+	ObjFunction* function = endCompiler();
+
+	return parser.hadError ? nullptr : function;
 }
 
 } // namespace cxxlox

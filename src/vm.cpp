@@ -64,28 +64,35 @@ void VM::runtimeError(const std::string& message)
 {
 	std::cerr << message << '\n';
 
+	Chunk* chunk = &currentFrame()->function->chunk;
+
 	// ip points to the NEXT instruction to subtract an extra 1.
-	const uintptr_t instruction = reinterpret_cast<uintptr_t>(ip) - reinterpret_cast<uintptr_t>(&chunk->code[0]) - 1;
+	const uintptr_t instruction = reinterpret_cast<uintptr_t>(currentFrame()->ip) - reinterpret_cast<uintptr_t>(&chunk->code[0]) - 1;
 	const int line = chunk->lines[int(instruction)];
 
 	std::cerr << std::format("[line {}] in script\n", line);
 }
 
+CallFrame* VM::currentFrame()
+{
+	return &frames[frameCount - 1];
+}
+
 uint8_t VM::readByte()
 {
-	return *ip++;
+	return *currentFrame()->ip++;
 }
 
 uint16_t VM::readShort()
 {
-	ip += 2;
-	return static_cast<uint16_t>(ip[-1] | (ip[-2] << 8));
+	currentFrame()->ip += 2;
+	return static_cast<uint16_t>(currentFrame()->ip[-1] | (currentFrame()->ip[-2] << 8));
 }
 
 Value VM::readConstant()
 {
-	CL_ASSERT(chunk);
-	return chunk->constants[readByte()];
+	CL_ASSERT(currentFrame()->function);
+	return currentFrame()->function->chunk.constants[readByte()];
 }
 
 ObjString* VM::readString()
@@ -176,8 +183,9 @@ InterpretResult VM::run()
 				std::cout << ']';
 			}
 			std::cout << "<top>\n";
-			const auto offset = int32_t(std::distance((const uint8_t*)&chunk->code[0], ip));
-			CL_UNUSED(disassembleInstruction(*chunk, offset));
+			Chunk& chunk = currentFrame()->function->chunk;
+			const auto offset = int32_t(std::distance((uint8_t*)&chunk.code[0], currentFrame()->ip));
+			CL_UNUSED(disassembleInstruction(chunk, offset));
 		}
 #endif
 
@@ -186,17 +194,17 @@ InterpretResult VM::run()
 		switch (instruction) {
 			case OP_JUMP: {
 				const uint16_t offset = readShort();
-				ip += offset;
+				currentFrame()->ip += offset;
 			} break;
 			case OP_JUMP_IF_FALSE: {
 				const uint16_t offset = readShort();
 				if (isFalsey(peek(0))) {
-					ip += offset;
+					currentFrame()->ip += offset;
 				}
 			} break;
 			case OP_LOOP: {
 				const uint16_t offset = readShort();
-				ip -= offset;
+				currentFrame()->ip -= offset;
 			} break;
 			case OP_RETURN:
 				// for now, end execution
@@ -238,7 +246,7 @@ InterpretResult VM::run()
 				break;
 			case OP_GET_LOCAL: {
 				const uint8_t slot = readByte();
-				push(stack[slot]);
+				push(currentFrame()->slots[slot]);
 			} break;
 			case OP_GET_GLOBAL: {
 				ObjString* name = readString();
@@ -258,7 +266,7 @@ InterpretResult VM::run()
 				const uint8_t slot = readByte();
 				// Assignment is an expression, so leave the assigned value on
 				// the stack.
-				stack[slot] = peek(0);
+				currentFrame()->slots[slot] = peek(0);
 			} break;
 			case OP_SET_GLOBAL: {
 				ObjString* name = readString();
@@ -309,15 +317,16 @@ InterpretResult VM::run()
 
 InterpretResult VM::interpret(const std::string& source)
 {
-	// FIXME: This isn't the best way to handle this escaping value.
-	static Chunk compiledChunk;
-
-	if (!compile(source, &compiledChunk)) {
+	ObjFunction* function = compile(source);
+	if (!function) {
 		return InterpretResult::CompileError;
 	}
 
-	chunk = &compiledChunk;
-	ip = &chunk->code[0];
+	push(Value::makeFunction(function));
+	CallFrame* frame = &frames[frameCount++];
+	frame->function = function;
+	frame->ip = &frame->function->chunk.code[0];
+	frame->slots = stack;
 
 	return run();
 }
