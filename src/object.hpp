@@ -30,7 +30,7 @@ struct Obj {
 
 struct ObjFunction {
 	Obj obj;
-	int32_t arity;
+	int32_t arity = 0;
 	Chunk chunk;
 	ObjString* name;
 

@@ -79,11 +79,22 @@ enum class FunctionType
 	Script
 };
 
+struct Compiler;
+
+static Parser parser;
+static Compiler* current = nullptr;
+
 // Tracks compilation of the top level and each Lox function.
 struct Compiler {
 	explicit Compiler(FunctionType type) : type(type)
 	{
+		enclosing = current;
 		function = makeFunction();
+		current = this;
+
+		if (type != FunctionType::Script) {
+			function->name = copyString(parser.previous.start, parser.previous.length);
+		}
 
 		// Allocate a local for use by the compiler.
 		Local* local = &locals[localCount++];
@@ -92,6 +103,8 @@ struct Compiler {
 		local->name.length = 0;
 	}
 
+	// The parent function in which this compilation instance is occuring.
+	Compiler* enclosing = nullptr;
 	ObjFunction* function = nullptr;
 	FunctionType type = FunctionType::Script;
 
@@ -103,9 +116,6 @@ struct Compiler {
 	int localCount = 0;
 	int scopeDepth = 0;
 };
-
-static Parser parser;
-static Compiler* current = nullptr;
 
 // C++ doesn't have C99 array designated initializers.  Emulate this.  This also
 // hides that TokenType can't be directly converted to an index without a cast.
@@ -323,6 +333,11 @@ static void declareVariable()
 // Marks the top variable as initialized.
 static void markInitialized()
 {
+	// Global functions aren't in a scope to be marked as initialized.
+	if (current->scopeDepth == 0) {
+		return;
+	}
+
 	current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 
@@ -452,6 +467,8 @@ static ObjFunction* endCompiler()
 		disassembleChunk(*currentChunk(), function->name != nullptr ? function->name->chars : "<script>");
 	}
 #endif
+
+	current = current->enclosing;
 	return function;
 }
 
@@ -526,6 +543,56 @@ static void block()
 		declaration();
 	}
 	consume(TokenType::RightBrace, "Expected '}' to terminate block.");
+}
+
+static void function(FunctionType type)
+{
+	constexpr int32_t kMaxFunctionArity = 255;
+
+	// Each function gets compiled by a separate compiler.
+	Compiler compiler(type);
+	beginScope();
+
+	consume(TokenType::LeftParen, "Expected `(` after function name.");
+
+	if (!check(TokenType::RightParen)) {
+		do {
+			++current->function->arity;
+			if (current->function->arity > kMaxFunctionArity) {
+				errorAtCurrent("Can't have more than 255 parameters.");
+			}
+
+			const uint8_t constant = parseVariable("Expected parameter name.");
+			defineVariable(constant);
+		} while (match(TokenType::Comma));
+	}
+
+	// consume parameter if available.
+
+	// consume parameters while there's a comma
+
+	consume(TokenType::RightParen, "Expected `)` after function parameters.");
+	consume(TokenType::LeftBrace, "Expected `{` after function parameter list.");
+
+	// contents
+	block();
+
+	ObjFunction* fn = endCompiler();
+
+	// Store the new function in the enclosing function's scope.
+	emitBytes(OP_CONSTANT, makeConstant(Value::makeFunction(fn)));
+
+	// no endScope here because there's no need to close the outermost scope.
+}
+
+static void functionDeclaration()
+{
+	const uint8_t global = parseVariable("Expected a function name.");
+	markInitialized();
+
+	// This isn't part of a top level script.
+	function(FunctionType::Function);
+	defineVariable(global);
 }
 
 static void varDeclaration()
@@ -738,7 +805,10 @@ static void whileStatement()
 
 static void declaration()
 {
-	if (match(TokenType::Var)) {
+	if (match(TokenType::Fun)) {
+		functionDeclaration();
+	}
+	else if (match(TokenType::Var)) {
 		varDeclaration();
 	} else {
 		statement();

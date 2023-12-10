@@ -1,0 +1,10 @@
+fun helloFunctions() {
+    print "Hello, World!";
+}
+
+fun sum(a, b) {
+    // return a + b;
+}
+
+print helloFunctions;
+print sum;
