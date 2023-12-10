@@ -1,7 +1,13 @@
+from enum import Enum
 import os
 from pathlib import Path
 import subprocess
 import sys
+
+
+class Config(Enum):
+    Debug = 0
+    Release = 1
 
 
 def build_root() -> Path:
@@ -40,7 +46,10 @@ def build_bytecode_vm(root_dir: Path):
 
 
 def vm_path() -> Path:
-    return build_root().joinpath("build", "src", "Debug", "cxxlox_vm_cli.exe")
+    cmake_build_root: str = "build"
+    exe_name: str = "cxxlox_vm_cli.exe"
+    config: Config = Config.Debug
+    return build_root().joinpath(cmake_build_root, "src", config.name, exe_name)
 
 
 def run_program(program_name: Path) -> str:
