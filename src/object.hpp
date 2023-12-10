@@ -26,6 +26,12 @@ struct Obj {
 		CL_ASSERT(type == ObjType::String);
 		return reinterpret_cast<ObjString*>(this);
 	}
+
+	[[nodiscard]] ObjFunction* toFunction()
+	{
+		CL_ASSERT(type == ObjType::Function);
+		return reinterpret_cast<ObjFunction*>(this);
+	}
 };
 
 struct ObjFunction {

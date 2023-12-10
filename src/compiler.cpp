@@ -159,6 +159,8 @@ static void statement();
 static void expression();
 static const ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
+
+static bool check(TokenType type);
 static bool match(TokenType type);
 static void consume(TokenType type, const char* errorMessage);
 static uint8_t makeConstant(Value value);
@@ -315,6 +317,22 @@ static void declareVariable()
 	addLocal(*name);
 }
 
+static uint8_t argumentList()
+{
+	uint8_t argCount = 0;
+	if (!check(TokenType::RightParen)) {
+		do {
+			expression();
+			if (argCount == 255) {
+				error("Can't have more than 255 arguments.");
+			}
+			++argCount;
+		} while (match(TokenType::Comma));
+	}
+	consume(TokenType::RightParen, "Expected ')' after argument list.");
+	return argCount;
+}
+
 // Look for a variable, returning the index in the constants map.
 // If the variable is a local variable, then return 0.
 [[nodiscard]] static uint8_t parseVariable(const char* errorMessage)
@@ -455,6 +473,8 @@ static void patchJump(int offset)
 
 static void emitReturn()
 {
+	// Implicitly return nil if no return value is provided.
+	emitByte(OP_NIL);
 	emitByte(OP_RETURN);
 }
 
@@ -532,6 +552,12 @@ static void binary([[maybe_unused]] bool canAssign)
 	}
 }
 
+static void call(bool canAssign)
+{
+	const uint8_t argCount = argumentList();
+	emitBytes(OP_CALL, argCount);
+}
+
 static void expression()
 {
 	parsePrecedence(PREC_ASSIGNMENT);
@@ -551,6 +577,7 @@ static void function(FunctionType type)
 
 	// Each function gets compiled by a separate compiler.
 	Compiler compiler(type);
+	current = &compiler;
 	beginScope();
 
 	consume(TokenType::LeftParen, "Expected `(` after function name.");
@@ -776,6 +803,21 @@ static void ifStatement()
 	patchJump(elseJump);
 }
 
+static void returnStatement()
+{
+	if (current->type == FunctionType::Script) {
+		error("Cannot return from top-level code.");
+	}
+
+	if (match(TokenType::Semicolon)) {
+		emitReturn();
+	} else {
+		expression();
+		consume(TokenType::Semicolon, "Expected ';' after return expression.");
+		emitByte(OP_RETURN);
+	}
+}
+
 // `while` `(` expression `)`
 //    statement
 //
@@ -807,8 +849,7 @@ static void declaration()
 {
 	if (match(TokenType::Fun)) {
 		functionDeclaration();
-	}
-	else if (match(TokenType::Var)) {
+	} else if (match(TokenType::Var)) {
 		varDeclaration();
 	} else {
 		statement();
@@ -829,6 +870,8 @@ static void statement()
 		forStatement();
 	} else if (match(TokenType::If)) {
 		ifStatement();
+	} else if (match(TokenType::Return)) {
+		returnStatement();
 	} else if (match(TokenType::While)) {
 		whileStatement();
 	} else if (match(TokenType::LeftBrace)) {
@@ -939,7 +982,7 @@ static void literal([[maybe_unused]] bool canAssign)
 
 // clang-format off
 static PrattRuleMap rules = {
-	{TokenType::LeftParen, {grouping, nullptr, PREC_NONE}},
+	{TokenType::LeftParen, {grouping, call, PREC_CALL}},
 	{TokenType::RightParen, {nullptr, nullptr, PREC_NONE}},
 	{TokenType::LeftBrace, {nullptr, nullptr, PREC_NONE}},
 	{TokenType::RightBrace, {nullptr, nullptr, PREC_NONE}},

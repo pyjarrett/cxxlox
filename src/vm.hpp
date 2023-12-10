@@ -52,6 +52,9 @@ struct VM {
 
 	[[nodiscard]] Value peek(int distance) const;
 
+	[[nodiscard]] bool call(ObjFunction* fn, int argCount);
+	[[nodiscard]] bool callValue(Value callee, int argCount);
+
 	void runtimeError(const std::string& message);
 
 	[[nodiscard]] InterpretResult interpret(const std::string& source);

@@ -66,11 +66,21 @@ void VM::runtimeError(const std::string& message)
 
 	Chunk* chunk = &currentFrame()->function->chunk;
 
-	// ip points to the NEXT instruction to subtract an extra 1.
-	const uintptr_t instruction = reinterpret_cast<uintptr_t>(currentFrame()->ip) - reinterpret_cast<uintptr_t>(&chunk->code[0]) - 1;
-	const int line = chunk->lines[int(instruction)];
+	// Print a stack trace
+	for (int i = frameCount - 1; i >= 0; --i) {
+		CallFrame* frame = &frames[i];
+		ObjFunction* fn = frame->function;
+		// -1 since the previous instruction failed
+		const int32_t instruction = std::distance(frame->ip, &fn->chunk.code[0]) - 1;
+		std::cout << "[line " << (fn->chunk.lines[instruction]) << "] in ";
+		if (frame->function->name) {
+			std::cerr << frame->function->name->chars << '\n';
+		} else {
+			std::cerr << "<script>\n";
+		}
+	}
 
-	std::cerr << std::format("[line {}] in script\n", line);
+	resetStack();
 }
 
 CallFrame* VM::currentFrame()
@@ -121,6 +131,44 @@ Value VM::pop()
 Value VM::peek(int distance) const
 {
 	return stackTop[-1 - distance];
+}
+
+bool VM::call(ObjFunction* fn, int argCount)
+{
+	if (argCount != fn->arity) {
+		runtimeError(std::format("Expected {} arguments but got {}.", fn->arity, argCount));
+		return false;
+	}
+
+	if (frameCount == kFramesMax) {
+		runtimeError("Stack overflow.");
+		return false;
+	}
+
+	CallFrame* frame = &frames[frameCount++];
+	frame->function = fn;
+	frame->ip = &fn->chunk.code[0];
+	frame->slots = stackTop - argCount - 1;
+	return true;
+}
+
+// Tries to call a value, such as a function.
+bool VM::callValue(Value callee, int argCount)
+{
+	if (callee.isObj()) {
+		switch (callee.toObj()->type) {
+			case ObjType::Function:
+				return call(callee.as.obj->toFunction(), argCount);
+				break;
+			default:
+				// uncallable function
+				CL_ASSERT(false);
+				break;
+		}
+	}
+
+	runtimeError("Can only call functions and classes.");
+	return false;
 }
 
 void VM::freeObjects()
@@ -206,9 +254,25 @@ InterpretResult VM::run()
 				const uint16_t offset = readShort();
 				currentFrame()->ip -= offset;
 			} break;
-			case OP_RETURN:
-				// for now, end execution
-				return InterpretResult::Ok;
+			case OP_CALL: {
+				const uint8_t numArgs = readByte();
+				if (!callValue(peek(numArgs), numArgs)) {
+					return InterpretResult::RuntimeError;
+				}
+				// Deviation: no cached `frame` to update (maybe this is a speed issue?)
+			} break;
+			case OP_RETURN: {
+				Value result = pop();
+				--frameCount;
+				if (frameCount == 0) {
+					CL_UNUSED(pop());
+					return InterpretResult::Ok;
+				}
+				// Remove the current stack frame.
+				stackTop = currentFrame()->slots;
+				push(result);
+				// Deviation: no need to update cached `frame`
+			} break;
 			case OP_ADD:
 				if (isObjType(peek(0), ObjType::String) && isObjType(peek(1), ObjType::String)) {
 					concatenate();
@@ -323,10 +387,7 @@ InterpretResult VM::interpret(const std::string& source)
 	}
 
 	push(Value::makeFunction(function));
-	CallFrame* frame = &frames[frameCount++];
-	frame->function = function;
-	frame->ip = &frame->function->chunk.code[0];
-	frame->slots = stack;
+	CL_UNUSED(call(function, 0));
 
 	return run();
 }
