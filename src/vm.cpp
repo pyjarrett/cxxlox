@@ -64,8 +64,6 @@ void VM::runtimeError(const std::string& message)
 {
 	std::cerr << message << '\n';
 
-	Chunk* chunk = &currentFrame()->function->chunk;
-
 	// Print a stack trace
 	for (int i = frameCount - 1; i >= 0; --i) {
 		CallFrame* frame = &frames[i];

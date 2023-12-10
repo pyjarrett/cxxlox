@@ -32,6 +32,7 @@ struct CallFrame {
 	// of the VM value stack.
 	Value* slots;
 };
+static_assert(sizeof(CallFrame) == 24);
 
 struct VM {
 	static constexpr int32_t kFramesMax = 64;
@@ -40,7 +41,10 @@ struct VM {
 	static VM& instance();
 	static void reset();
 
-	[[nodiscard]] inline CallFrame* currentFrame();
+	// I tried using CL_FORCE_INLINE on this, but it optimizes down to 3
+	// instructions at -O2, force inlining takes 6 in debug and pollutes the
+	// assembly, making it harder to read.
+	[[nodiscard]] CallFrame* currentFrame();
 
 	[[nodiscard]] uint8_t readByte();
 	[[nodiscard]] uint16_t readShort();

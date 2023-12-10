@@ -398,7 +398,7 @@ static void consume(TokenType type, const char* message)
 	return true;
 }
 
-[[nodiscard]] Chunk* currentChunk()
+[[nodiscard]] CL_FORCE_INLINE Chunk* currentChunk()
 {
 	return &current->function->chunk;
 }
