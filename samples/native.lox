@@ -1,0 +1,50 @@
+// Comparison Python program:
+// PS D:\dev\cpp\cxxlox> python3 --version
+// Python 3.11.0
+// PS D:\dev\cpp\cxxlox> python3 .\scripts\comparison_fib35.py
+// 9227465
+// 1.0744984149932861
+// PS D:\dev\cpp\cxxlox> python3 .\scripts\comparison_fib35.py
+// 9227465
+// 1.0829997062683105
+// PS D:\dev\cpp\cxxlox> python3 .\scripts\comparison_fib35.py
+// 9227465
+// 1.080000400543213
+
+// Debug (not really a perf run, but fun for comparison)
+// == execution ==
+// 9.22746e+06
+// Elapsed:
+// 10.189
+// == execution ==
+// 9.22746e+06
+// Elapsed:
+// 10.128
+// == execution ==
+// 9.22746e+06
+// Elapsed:
+// 9.963
+
+// Release -- it's about the speed of Python on my system
+// == execution ==
+// 9.22746e+06
+// Elapsed:
+// 1.014
+// == execution ==
+// 9.22746e+06
+// Elapsed:
+// 1.022
+// == execution ==
+// 9.22746e+06
+// Elapsed:
+// 1.024
+
+fun fib(n) {
+    if (n < 2) return n;
+    return fib(n - 1) + fib(n - 2);
+}
+
+var start = clock();
+print fib(35);
+print "Elapsed:";
+print clock() - start;

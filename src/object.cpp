@@ -1,9 +1,18 @@
 #include "object.hpp"
 
+#include "allocator.hpp"
 #include "vm.hpp"
+
+#include <cstring>  // for strnlen
 #include <iostream>
 
 namespace cxxlox {
+
+ObjNative* Obj::toNative()
+{
+	CL_ASSERT(type == ObjType::Native);
+	return reinterpret_cast<ObjNative*>(this);
+}
 
 // Deviation: using destructor instead of `freeObject`
 ObjString::~ObjString()
@@ -24,6 +33,9 @@ void printObj(Obj* obj)
 			else {
 				std::cout << "<fn " << fn->name->chars << '>';
 			}
+		} break;
+		case ObjType::Native: {
+			std::cout << "<native fn>";
 		} break;
 		case ObjType::String: {
 			ObjString* str = reinterpret_cast<ObjString*>(obj);
@@ -68,6 +80,16 @@ ObjFunction* makeFunction()
 	str->hash = hash;
 	VM::instance().intern(str);
 	return str;
+}
+
+ObjString* copyString(const char* chars)
+{
+	constexpr size_t kMaxStringLength = 4096;
+
+	if (chars == nullptr) {
+		chars = "";
+	}
+	return copyString(chars, strnlen(chars, kMaxStringLength));
 }
 
 ObjString* copyString(const char* chars, uint32_t length)

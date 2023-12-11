@@ -1,9 +1,9 @@
 #pragma once
 
 #include "common.hpp"
+#include "object.hpp"
 #include "table.hpp"
 #include "value.hpp"
-
 #include <string>
 
 namespace cxxlox {
@@ -42,8 +42,10 @@ struct VM {
 	static void reset();
 
 	// I tried using CL_FORCE_INLINE on this, but it optimizes down to 3
-	// instructions at -O2, force inlining takes 6 in debug and pollutes the
-	// assembly, making it harder to read.
+	// instructions at -O2 on GCC, force inlining takes 6 in debug and pollutes
+	// the assembly, making it harder to read.
+	//
+	// On Windows RelWithDebInfo, it's a bit faster (>25%).
 	[[nodiscard]] CallFrame* currentFrame();
 
 	[[nodiscard]] uint8_t readByte();
@@ -60,6 +62,8 @@ struct VM {
 	[[nodiscard]] bool callValue(Value callee, int argCount);
 
 	void runtimeError(const std::string& message);
+
+	void defineNative(const char* name, NativeFunction fn);
 
 	[[nodiscard]] InterpretResult interpret(const std::string& source);
 

@@ -3,11 +3,9 @@
 #include "chunk.hpp"
 #include "common.hpp"
 #include "value.hpp"
-#include "vm.hpp"
 
 #include <cstddef>
 #include <string_view>
-#include <type_traits>
 
 namespace cxxlox {
 
@@ -15,12 +13,18 @@ namespace cxxlox {
 enum class ObjType
 {
 	Function,
+	Native,
 	String,
 };
+
+struct ObjString;
+struct ObjFunction;
+struct ObjNative;
 
 struct Obj {
 	ObjType type;
 	Obj* next = nullptr;
+
 	[[nodiscard]] ObjString* toString()
 	{
 		CL_ASSERT(type == ObjType::String);
@@ -32,13 +36,15 @@ struct Obj {
 		CL_ASSERT(type == ObjType::Function);
 		return reinterpret_cast<ObjFunction*>(this);
 	}
+
+	[[nodiscard]] ObjNative* toNative();
 };
 
 struct ObjFunction {
 	Obj obj;
 	int32_t arity = 0;
 	Chunk chunk;
-	ObjString* name;
+	ObjString* name = nullptr;
 
 	ObjFunction() = default;
 	~ObjFunction() = default;
@@ -52,18 +58,14 @@ struct ObjFunction {
 	ObjFunction& operator=(ObjFunction&&) = delete;
 };
 
-// TODO: Eventually this might also take an arg pack.
-template <typename T>
-T* allocateObj(ObjType type)
+using NativeFunction = Value(*)(int argCount, Value* args);
+
+// A function for calling native code.
+struct ObjNative
 {
-	// TODO: Formalize this extern in a better way.
-	static_assert(offsetof(T, obj) == 0, "Obj must be the first member of the type.");
-	static_assert(std::is_standard_layout_v<T>, "Type is not standard layout.");
-	T* t = new T;
-	t->obj.type = type;
-	VM::instance().track(reinterpret_cast<Obj*>(t));
-	return t;
-}
+	Obj obj;
+	NativeFunction function = nullptr;
+};
 
 // Every ObjString owns its own characters.
 struct ObjString {
@@ -92,6 +94,8 @@ void printObj(Obj* obj);
 [[nodiscard]] bool isObjType(Value value, ObjType type);
 
 [[nodiscard]] ObjFunction* makeFunction();
+
+[[nodiscard]] ObjString* copyString(const char* chars);
 
 // Copies a string into an ObjString with ownership of the copied memory.
 [[nodiscard]] ObjString* copyString(const char* chars, uint32_t length);

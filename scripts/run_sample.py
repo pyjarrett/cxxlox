@@ -1,13 +1,9 @@
-from enum import Enum
 import os
 from pathlib import Path
 import subprocess
 import sys
 
-
-class Config(Enum):
-    Debug = 0
-    Release = 1
+from config import Config
 
 
 def build_root() -> Path:

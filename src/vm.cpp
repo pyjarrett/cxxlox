@@ -1,5 +1,6 @@
 #include "vm.hpp"
 
+#include "allocator.hpp"
 #include "chunk.hpp"
 #include "common.hpp"
 #include "compiler.hpp"
@@ -9,12 +10,23 @@
 #endif
 
 #include "object.hpp"
+
+#include <chrono>
 #include <format>
 #include <iostream>
 
 namespace cxxlox {
 
 VM* VM::s_instance = nullptr;
+
+using ClockType = std::chrono::high_resolution_clock;
+static auto programStart = ClockType::now();
+
+static Value clockNative(int argCount, Value* args)
+{
+	const auto dt = std::chrono::duration_cast<std::chrono::milliseconds>(ClockType::now() - programStart);
+	return Value::makeNumber(dt.count() / 1'000.0);
+}
 
 static void freeObj(Obj* obj)
 {
@@ -35,6 +47,9 @@ static void freeObj(Obj* obj)
 	// threadsafe, but this is also a toy implementation.
 	if (!s_instance) {
 		s_instance = new VM;
+
+		// Deviation: cannot put in initVM(i.e. VM::VM) since it requires the VM.
+		s_instance->defineNative("clock", clockNative);
 	}
 	return *s_instance;
 }
@@ -79,6 +94,17 @@ void VM::runtimeError(const std::string& message)
 	}
 
 	resetStack();
+}
+
+void VM::defineNative(const char* name, NativeFunction fn)
+{
+	ObjNative* native = allocateObj<ObjNative>(ObjType::Native);
+	push(Value::makeString(copyString(name)));
+	push(Value::makeNative(native));
+	native->function = fn;
+
+	// TODO: Why 0 and 1 here and not stackTop[-1] and stackTop [-2]?
+	globals.set(stack[0].as.obj->toString(), stack[1]);
 }
 
 CallFrame* VM::currentFrame()
@@ -151,13 +177,20 @@ bool VM::call(ObjFunction* fn, int argCount)
 }
 
 // Tries to call a value, such as a function.
+// If the call succeeded, return true.
 bool VM::callValue(Value callee, int argCount)
 {
 	if (callee.isObj()) {
 		switch (callee.toObj()->type) {
 			case ObjType::Function:
 				return call(callee.as.obj->toFunction(), argCount);
-				break;
+			case ObjType::Native: {
+				ObjNative* native = callee.toObj()->toNative();
+				Value result = native->function(argCount, stackTop - argCount);
+				stackTop -= argCount + 1; // Remove native args AND function from the stack.
+				push(result);
+				return true;
+			}
 			default:
 				// uncallable function
 				CL_ASSERT(false);
