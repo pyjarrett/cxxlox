@@ -6,7 +6,7 @@ import sys
 from config import Config
 
 
-def build_root() -> Path:
+def project_root() -> Path:
     """
     Looks upward for a build root where a .git resides.
 
@@ -45,7 +45,7 @@ def vm_path() -> Path:
     cmake_build_root: str = "build"
     exe_name: str = "cxxlox_vm_cli.exe"
     config: Config = Config.Debug
-    return build_root().joinpath(cmake_build_root, "src", config.name, exe_name)
+    return project_root().joinpath(cmake_build_root, "src", config.name, exe_name)
 
 
 def run_program(program_name: Path) -> str:
@@ -66,7 +66,7 @@ def main():
 
     program_name: str = Path(sys.argv[1])
 
-    root_dir: Path = build_root()
+    root_dir: Path = project_root()
     print(f"Build root is {root_dir}")
 
     build_bytecode_vm(root_dir)
