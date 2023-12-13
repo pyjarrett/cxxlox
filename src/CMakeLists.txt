@@ -31,3 +31,8 @@ add_executable(cxxlox_vm_cli main.cpp)
 target_link_libraries(cxxlox_vm_cli cxxlox_vm)
 target_include_directories(cxxlox_vm_cli SYSTEM PUBLIC ${PROJECT_ROOT}/src)
 
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+    # Print code and trace commands in debug modes.
+    target_compile_definitions(cxxlox_vm PRIVATE DEBUG_PRINT_CODE DEBUG_TRACE_EXECUTION)
+endif()
+

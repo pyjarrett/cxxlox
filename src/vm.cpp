@@ -251,7 +251,9 @@ static void concatenate()
 
 InterpretResult VM::run()
 {
+#ifdef DEBUG_TRACE_EXECUTION
 	std::cout << "== execution ==\n";
+#endif
 	while (true) {
 #ifdef DEBUG_TRACE_EXECUTION
 		{
