@@ -265,8 +265,8 @@ static void parsePrecedence(Precedence precedence)
 [[nodiscard]] static int resolveLocal(Compiler* compiler, Token* name)
 {
 	// Look at the current and upwards scopes for a variable of this name.
-	for (int i = current->localCount - 1; i >= 0; --i) {
-		Local* local = &current->locals[i];
+	for (int i = compiler->localCount - 1; i >= 0; --i) {
+		Local* local = &compiler->locals[i];
 		if (identifiersEqual(&local->name, name)) {
 			if (local->depth == Local::kUninitialized) {
 				error("Cannot reference a local variable in its own initializer.");
