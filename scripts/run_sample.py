@@ -1,7 +1,7 @@
+import argparse
 import os
 from pathlib import Path
 import subprocess
-import sys
 
 from config import Config
 
@@ -37,12 +37,13 @@ def build_bytecode_vm(root_dir: Path, config: Config):
         os.mkdir(build_dir)
     os.chdir(build_dir)
 
-    # The buidl directory might exist, but CMake might not have been run yet.
+    # The build directory might exist, but CMake might not have been run yet.
     if not os.path.exists("CMakeCache.txt"):
-        subprocess.run("cmake ..".split())
+        subprocess.run(f"cmake -DCMAKE_BUILD_TYPE={config.name} ..".split())
 
     # The true "build" step.
-    subprocess.run("cmake --build . -j32".split())
+    # --config is only needed in multi-config generations, like Visual Studio
+    subprocess.run(f"cmake --build . -j32 --config={config.name}".split())
     os.chdir(previous_dir)
 
 
@@ -62,16 +63,16 @@ def main():
     """
     Builds the bytecode vm and then runs a sample program.
     """
-    if len(sys.argv) < 2:
-        print("Expected a file name to run.")
-        print(f"Usage {sys.argv[0]} [filename.lox]")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Builds the bytecode vm and then runs a sample program.")
+    parser.add_argument('program_path', metavar='program_path', type=str)
+    parser.add_argument('--config', default=Config.Debug.name, choices=[Config.Debug.name, Config.Release.name], help='Configuration type')
+    args = parser.parse_args()
 
-    program_name: str = Path(sys.argv[1])
+    program_name: str = Path(args.program_path)
     root_dir: Path = project_root()
-    config: Config = Config.Debug
+    config: Config = Config[args.config]
 
-    print(f"Build root is {root_dir}")
+    print(f"Build root is {root_dir}, Config is {config.name}")
     build_bytecode_vm(root_dir, config)
     print(run_program(program_name, config).decode("utf-8"))
 
