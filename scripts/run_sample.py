@@ -23,14 +23,19 @@ def project_root() -> Path:
     return current_dir
 
 
-def build_bytecode_vm(root_dir: Path):
+def cmake_build_root(config: Config) -> str:
+    return f"build-{config.name.lower()}"
+
+
+def build_bytecode_vm(root_dir: Path, config: Config):
     previous_dir = os.getcwd()
     os.chdir(root_dir)
 
     # Make the build directory if needed.
-    if not os.path.exists("build"):
-        os.mkdir("build")
-    os.chdir("build")
+    build_dir: str = cmake_build_root(config)
+    if not os.path.exists(build_dir):
+        os.mkdir(build_dir)
+    os.chdir(build_dir)
 
     # The buidl directory might exist, but CMake might not have been run yet.
     if not os.path.exists("CMakeCache.txt"):
@@ -41,15 +46,13 @@ def build_bytecode_vm(root_dir: Path):
     os.chdir(previous_dir)
 
 
-def vm_path() -> Path:
-    cmake_build_root: str = "build"
+def vm_path(config: Config) -> Path:
     exe_name: str = "cxxlox_vm_cli.exe"
-    config: Config = Config.Debug
-    return project_root().joinpath(cmake_build_root, "src", config.name, exe_name)
+    return project_root().joinpath(cmake_build_root(config), "src", config.name, exe_name)
 
 
-def run_program(program_name: Path) -> str:
-    vm = vm_path()
+def run_program(program_name: Path, config: Config) -> str:
+    vm = vm_path(config)
     print(f"Running program: {program_name}")
     print(f"Interpreter {vm}")
     return subprocess.check_output([vm, program_name])
@@ -65,14 +68,12 @@ def main():
         sys.exit(1)
 
     program_name: str = Path(sys.argv[1])
-
     root_dir: Path = project_root()
+    config: Config = Config.Debug
+
     print(f"Build root is {root_dir}")
-
-    build_bytecode_vm(root_dir)
-
-    # TODO: Allow running under different program configurations: debug, release, etc.
-    print(run_program(program_name).decode("utf-8"))
+    build_bytecode_vm(root_dir, config)
+    print(run_program(program_name, config).decode("utf-8"))
 
 
 if __name__ == "__main__":
