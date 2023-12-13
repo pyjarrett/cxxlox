@@ -21,22 +21,17 @@ struct ObjString;
 struct ObjFunction;
 struct ObjNative;
 
+// An opaque header applied to all object subtypes to ensure every type has a
+// type and a pointer to the next type.
 struct Obj {
 	ObjType type;
+
+	// Intrusive linked list pointer.
 	Obj* next = nullptr;
 
-	[[nodiscard]] ObjString* toString()
-	{
-		CL_ASSERT(type == ObjType::String);
-		return reinterpret_cast<ObjString*>(this);
-	}
-
-	[[nodiscard]] ObjFunction* toFunction()
-	{
-		CL_ASSERT(type == ObjType::Function);
-		return reinterpret_cast<ObjFunction*>(this);
-	}
-
+	// Conversion to overlying types.
+	[[nodiscard]] ObjString* toString();
+	[[nodiscard]] ObjFunction* toFunction();
 	[[nodiscard]] ObjNative* toNative();
 };
 

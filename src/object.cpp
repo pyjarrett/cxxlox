@@ -8,6 +8,18 @@
 
 namespace cxxlox {
 
+ObjString* Obj::toString()
+{
+	CL_ASSERT(type == ObjType::String);
+	return reinterpret_cast<ObjString*>(this);
+}
+
+ObjFunction* Obj::toFunction()
+{
+	CL_ASSERT(type == ObjType::Function);
+	return reinterpret_cast<ObjFunction*>(this);
+}
+
 ObjNative* Obj::toNative()
 {
 	CL_ASSERT(type == ObjType::Native);
