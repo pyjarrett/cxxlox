@@ -164,7 +164,10 @@ static bool check(TokenType type);
 static bool match(TokenType type);
 static void consume(TokenType type, const char* errorMessage);
 static uint8_t makeConstant(Value value);
+static void emitByte(uint8_t byte);
 static void emitBytes(uint8_t byte1, uint8_t byte2);
+static int emitJump(uint8_t byte);
+static void patchJump(int offset);
 
 static void errorAt(const Token& token, const char* message)
 {
@@ -367,6 +370,54 @@ static void defineVariable(uint8_t global)
 		return;
 	}
 	emitBytes(OP_DEFINE_GLOBAL, global);
+}
+
+// Short-circuiting `and` operator.
+static void andOperator(bool canAssign)
+{
+	CL_UNUSED(canAssign);
+
+	// The left hand side should on the top of the stack.
+	// Skip the right hand evaluation if it is false.
+	const int endJump = emitJump(OP_JUMP_IF_FALSE);
+
+	// Remove left-hand side from the stack.
+	emitByte(OP_POP);
+	parsePrecedence(PREC_AND);
+
+	// Evaluating the right-hand will leave the appropriate value on the top of
+	// the stack.
+	patchJump(endJump);
+}
+
+// Short-circuiting `or` operator
+//
+// lhs || right
+//
+// lhs on stack
+// if false, go to rhs ----------->+
+// was true, so go to end ---->+   |
+// pop       <---------------- |  --+
+// evaluate right-hand side    |
+// <---------------------------+
+static void orOperator(bool canAssign)
+{
+	CL_UNUSED(canAssign);
+
+	// The left side should be on the stack.
+	const int elseJump = emitJump(OP_JUMP_IF_FALSE);
+
+	// lhs was true, so bypass right-hand evaluation.
+	const int endJump = emitJump(OP_JUMP);
+
+	// rhs evaluation
+	patchJump(elseJump);
+	emitByte(OP_POP);  // pop lhs off the stack
+	parsePrecedence(PREC_OR);
+
+	patchJump(endJump);
+
+	// Leave either lhs or rhs on stack
 }
 
 // Expect the next token to be a given type, move along if it is, otherwise
@@ -1008,8 +1059,8 @@ static PrattRuleMap rules = {
 	{TokenType::String, {string, nullptr, PREC_NONE}},
 	{TokenType::Number, {number, nullptr, PREC_NONE}},
 
-	{TokenType::And, {nullptr, nullptr, PREC_NONE}},
-	{TokenType::Or, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::And, {nullptr, andOperator, PREC_AND}},
+	{TokenType::Or, {nullptr, orOperator, PREC_OR}},
 
 	{TokenType::If, {nullptr, nullptr, PREC_NONE}},
 	{TokenType::Else, {nullptr, nullptr, PREC_NONE}},

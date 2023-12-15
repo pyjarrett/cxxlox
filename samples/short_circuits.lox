@@ -1,0 +1,4 @@
+print 0 and 10;
+print 10 and 0;
+print 5 or 20;
+print 20 or 5;
