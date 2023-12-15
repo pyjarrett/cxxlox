@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 
 from config import Config
-from project import run_program
+from project import build_bytecode_vm, run_program
 
 
 def main():
@@ -20,6 +20,7 @@ def main():
     program_name: str = Path(args.program_path)
     config: Config = Config[args.config]
 
+    build_bytecode_vm(config)
     print(run_program(program_name, config))
 
 
