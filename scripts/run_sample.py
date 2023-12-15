@@ -19,6 +19,7 @@ def main():
 
     program_name: str = Path(args.program_path)
     config: Config = Config[args.config]
+
     print(run_program(program_name, config))
 
 

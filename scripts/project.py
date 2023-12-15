@@ -27,7 +27,8 @@ def cmake_build_root(config: Config) -> str:
     return f"build-{config.name.lower()}"
 
 
-def build_bytecode_vm(root_dir: Path, config: Config):
+def build_bytecode_vm(config: Config):
+    root_dir: Path = project_root()
     previous_dir = os.getcwd()
     os.chdir(root_dir)
 
@@ -53,9 +54,5 @@ def vm_path(config: Config) -> Path:
 
 
 def run_program(program_name: Path, config: Config) -> str:
-    root_dir = project_root()
-    build_bytecode_vm(root_dir, config)
     vm = vm_path(config)
-    print(f"Running program: {program_name}")
-    print(f"Interpreter {vm}")
     return subprocess.check_output([vm, program_name]).decode('utf-8')
