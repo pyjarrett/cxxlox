@@ -1,0 +1,7 @@
+lonely if: true
+if: true
+else: false
+true or false
+false or true
+else: true and false
+else: false and true

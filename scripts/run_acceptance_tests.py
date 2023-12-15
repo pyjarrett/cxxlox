@@ -15,7 +15,7 @@ def main():
     for file in glob(os.path.join(samples_dir, '*.lox')):
         expected_file = file.replace('.lox', '.expected')
         if not os.path.exists(expected_file):
-            print(f"{file} ... no '.expected' output file")
+            print(f"[OMIT] {file} ... no '.expected' output file")
             continue
 
         with open(expected_file, 'r') as expected_file:
@@ -24,15 +24,15 @@ def main():
 
         real_lines = real_output.splitlines()
         expected_lines = expected_output.splitlines()
-        merged = zip(real_lines, expected_lines)
-        passed = [left == right for left, right in merged]
+        merged = list(zip(real_lines, expected_lines))
+        passed = all([left == right for left, right in merged])
 
         if passed:
             print(f'[PASS] {file}')
-        if not passed:
-            for real, expected in merged:
-                print(f'{real} <=> {expected}')
+        else:
             print(f'[FAIL] {file}')
+            for (real, expected) in merged:
+                print(f'    {real} <=> {expected}')
 
         # If failed, rerun in debug.
 
