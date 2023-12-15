@@ -65,7 +65,8 @@ def main():
     """
     parser = argparse.ArgumentParser(description="Builds the bytecode vm and then runs a sample program.")
     parser.add_argument('program_path', metavar='program_path', type=str)
-    parser.add_argument('--config', default=Config.Debug.name, choices=[Config.Debug.name, Config.Release.name], help='Configuration type')
+    parser.add_argument('--config', default=Config.Debug.name, choices=[Config.Debug.name, Config.Release.name],
+                        help='Configuration type')
     args = parser.parse_args()
 
     program_name: str = Path(args.program_path)
