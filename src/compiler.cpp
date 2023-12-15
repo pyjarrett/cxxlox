@@ -2,6 +2,7 @@
 
 #include "chunk.hpp"
 #include "object.hpp"
+#include "pratt.hpp"
 #include "scanner.hpp"
 
 #ifdef DEBUG_PRINT_CODE
@@ -24,37 +25,6 @@ struct Parser {
 	// Flag to set on parser error to allow it to resync without blasting out
 	// innumerable errors while finding a synchronization point.
 	bool panicMode = false;
-};
-
-// Use enum value auto-incrementing to decide precedence levels.
-enum Precedence
-{
-	PREC_NONE,
-	PREC_ASSIGNMENT, // =
-	PREC_OR,         // or
-	PREC_AND,        // and
-	PREC_EQUALITY,   // ==
-	PREC_COMPARISON, // < > <= >=
-	PREC_TERM,       // + -
-	PREC_FACTOR,     // * /
-	PREC_UNARY,      // ! -
-	PREC_CALL,       // . ()
-	PREC_PRIMARY
-};
-
-// We (sadly) maintain inner state in this module, so all parse functions are
-// just plain functions with no parameters because of the global state... :(
-using ParseFn = void (*)(bool canAssign);
-
-// Pratt parsing rule.
-struct ParseRule {
-	// Function to use when encountering the key's token type as a prefix.
-	ParseFn prefix;
-
-	// Function to use when encountering the key's token type as a infix operator.
-	ParseFn infix;
-
-	Precedence precedence;
 };
 
 // A local variable.
@@ -115,43 +85,6 @@ struct Compiler {
 	// The total number of locals which have been declared.
 	int localCount = 0;
 	int scopeDepth = 0;
-};
-
-// C++ doesn't have C99 array designated initializers.  Emulate this.  This also
-// hides that TokenType can't be directly converted to an index without a cast.
-struct PrattRuleMap {
-	struct PrattRuleRow {
-		TokenType type;
-		ParseRule rule;
-	};
-
-	PrattRuleMap(std::initializer_list<PrattRuleRow> items)
-	{
-		rules_ = new ParseRule[items.size()];
-
-		// Require the rules to be in order.  This also ensures that every token
-		// type gets covered and none forgotten.
-		int nextRuleIndex = 0;
-		for (const auto& row : items) {
-			const int index = static_cast<int>(row.type);
-			CL_ASSERT(index == nextRuleIndex);
-			++nextRuleIndex;
-			rules_[index] = row.rule;
-		}
-	}
-
-	~PrattRuleMap() { delete[] rules_; }
-
-	PrattRuleMap(const PrattRuleMap&) = delete;
-	PrattRuleMap& operator=(const PrattRuleMap&) = delete;
-
-	PrattRuleMap(PrattRuleMap&&) = delete;
-	PrattRuleMap& operator=(PrattRuleMap&&) = delete;
-
-	const ParseRule* operator[](TokenType token) const { return &rules_[static_cast<int>(token)]; }
-
-private:
-	ParseRule* rules_ = nullptr;
 };
 
 static void declaration();
@@ -412,7 +345,7 @@ static void orOperator(bool canAssign)
 
 	// rhs evaluation
 	patchJump(elseJump);
-	emitByte(OP_POP);  // pop lhs off the stack
+	emitByte(OP_POP); // pop lhs off the stack
 	parsePrecedence(PREC_OR);
 
 	patchJump(endJump);
@@ -1031,7 +964,6 @@ static void literal([[maybe_unused]] bool canAssign)
 	}
 }
 
-// clang-format off
 static PrattRuleMap rules = {
 	{TokenType::LeftParen, {grouping, call, PREC_CALL}},
 	{TokenType::RightParen, {nullptr, nullptr, PREC_NONE}},
@@ -1082,7 +1014,6 @@ static PrattRuleMap rules = {
 	{TokenType::Error, {nullptr, nullptr, PREC_NONE}},
 	{TokenType::Eof, {nullptr, nullptr, PREC_NONE}},
 };
-// clang-format on
 
 static const ParseRule* getRule(TokenType type)
 {

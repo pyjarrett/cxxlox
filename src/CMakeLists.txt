@@ -5,6 +5,7 @@ set(CXXLOX_SRCS
     compiler.cpp
     debug.cpp
     object.cpp
+    pratt.cpp
     scanner.cpp
     table.cpp
     value.cpp
@@ -21,6 +22,7 @@ set(CXXLOX_HEADERS
     compiler.hpp
     debug.hpp
     object.hpp
+    pratt.hpp
     scanner.hpp
     table.hpp
     value.hpp
