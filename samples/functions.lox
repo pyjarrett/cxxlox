@@ -16,12 +16,9 @@ fun fib(n) {
 }
 
 helloFunctions();
-five();
 print five();
 print sum(1,2);
 
-print fib(0);
-print fib(1);
-print fib(2);
-print fib(3);
-print fib(4);
+for (var i = 0; i < 10; i = i + 1) {
+    print fib(i);
+}
