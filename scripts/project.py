@@ -55,4 +55,9 @@ def vm_path(config: Config) -> Path:
 
 def run_program(program_name: Path, config: Config) -> str:
     vm = vm_path(config)
-    return subprocess.check_output([vm, program_name]).decode('utf-8')
+    try:
+        return subprocess.check_output([vm, program_name]).decode('utf-8')
+    except subprocess.CalledProcessError as cpe:
+        print(f"Failed to run vm {vm} on {program_name}")
+        print(cpe)
+        return ""

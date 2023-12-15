@@ -1,5 +1,7 @@
 from glob import glob
+from itertools import zip_longest
 import os
+import sys
 
 from config import Config
 from project import build_bytecode_vm, project_root, run_program
@@ -27,7 +29,7 @@ def main():
 
         real_lines = real_output.splitlines()
         expected_lines = expected_output.splitlines()
-        merged = list(zip(real_lines, expected_lines))
+        merged = list(zip_longest(real_lines, expected_lines, fillvalue=""))
         passed = all([left == right for left, right in merged])
 
         if passed:
@@ -43,6 +45,9 @@ def main():
     print(f"Failed: {fails}")
     print(f"Omits:  {omits}")
     print(f"Total:  {passes + fails + omits}")
+
+    if fails > 0:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
