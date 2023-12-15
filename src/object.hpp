@@ -9,9 +9,10 @@
 
 namespace cxxlox {
 
-// Deviation: was OBJ_FUNCTION, OBJ_STRING
+// Deviation: was OBJ_CLOSURE, OBJ_FUNCTION, OBJ_STRING
 enum class ObjType
 {
+	Closure,
 	Function,
 	Native,
 	String,
@@ -60,6 +61,12 @@ struct ObjNative
 {
 	Obj obj;
 	NativeFunction function = nullptr;
+};
+
+struct ObjClosure
+{
+	Obj obj;
+	ObjFunction* function = nullptr;
 };
 
 // Every ObjString owns its own characters.

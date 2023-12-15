@@ -1,0 +1,8 @@
+// 30 - 20 = 10
+print 10 + 20 - 5 * 4;
+
+print nil;
+
+print "Hello";
+
+print "Hello," + " World!";
