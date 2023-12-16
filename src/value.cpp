@@ -41,6 +41,13 @@ Value Value::makeFunction(ObjFunction* fn)
 	return v;
 }
 
+Value Value::makeClosure(ObjClosure* fn)
+{
+	Value v {.type = ValueType::Obj};
+	v.as.obj = reinterpret_cast<Obj*>(fn);
+	return v;
+}
+
 Value Value::makeNative(ObjNative* fn)
 {
 	Value v {.type = ValueType::Obj};

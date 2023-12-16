@@ -22,15 +22,15 @@ enum class InterpretResult
 // An interpreted function call frame.  Native functions called from Lox do
 // not use this.
 struct CallFrame {
-	ObjFunction* function;
+	ObjClosure* closure = nullptr;
 
 	// The **next** instruction to be executed.
 	// "Instruction pointer" ("program counter").
-	uint8_t* ip;
+	uint8_t* ip = nullptr;
 
 	// Points to the base argument of the called function.  This will be a slice
 	// of the VM value stack.
-	Value* slots;
+	Value* slots = nullptr;
 };
 static_assert(sizeof(CallFrame) == 24);
 
@@ -58,7 +58,7 @@ struct VM {
 
 	[[nodiscard]] Value peek(int distance) const;
 
-	[[nodiscard]] bool call(ObjFunction* fn, int argCount);
+	[[nodiscard]] bool call(ObjClosure* closure, int argCount);
 	[[nodiscard]] bool callValue(Value callee, int argCount);
 
 	void runtimeError(const std::string& message);

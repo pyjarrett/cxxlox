@@ -614,7 +614,7 @@ static void function(FunctionType type)
 	ObjFunction* fn = endCompiler();
 
 	// Store the new function in the enclosing function's scope.
-	emitBytes(OP_CONSTANT, makeConstant(Value::makeFunction(fn)));
+	emitBytes(OP_CLOSURE, makeConstant(Value::makeFunction(fn)));
 
 	// No `endScope()` here because there's no need to close the outermost scope.
 	// The call frame is going to get popped if it's an inner function, and the

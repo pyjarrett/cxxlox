@@ -94,7 +94,7 @@ void printObj(Obj* obj);
 
 [[nodiscard]] bool isObjType(Value value, ObjType type);
 
-[[nodiscard]] ObjClosure* makeClosure();
+[[nodiscard]] ObjClosure* makeClosure(ObjFunction* fn);
 [[nodiscard]] ObjFunction* makeFunction();
 
 [[nodiscard]] ObjString* copyString(const char* chars);

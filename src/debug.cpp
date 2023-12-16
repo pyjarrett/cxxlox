@@ -111,6 +111,14 @@ int32_t disassembleInstruction(const Chunk& chunk, int32_t offset)
 			return jumpInstruction("OP_LOOP", -1, chunk, offset);
 		case OP_CALL:
 			return byteInstruction("OP_CALL", chunk, offset);
+		case OP_CLOSURE: {
+			++offset;
+			const uint8_t constant = chunk.code[offset++];
+			std::cout << std::format("{:<16} {:4}", "OP_CONSTANT", constant);
+			printValue(chunk.constants[constant]);
+			std::cout << '\n';
+			return offset;
+		}
 		case OP_RETURN:
 			return simpleInstruction("OP_RETURN", offset);
 		case OP_EQUAL:

@@ -16,6 +16,7 @@ enum class ValueType
 
 // Object "base class" (for lack of a better term)
 struct Obj;
+struct ObjClosure;
 struct ObjFunction;
 struct ObjNative;
 struct ObjString;
@@ -36,6 +37,7 @@ struct Value {
 	[[nodiscard]] static Value makeString(ObjString* str);
 	[[nodiscard]] static Value makeObj(Obj* obj);
 	[[nodiscard]] static Value makeFunction(ObjFunction* fn);
+	[[nodiscard]] static Value makeClosure(ObjClosure* closure);
 	[[nodiscard]] static Value makeNative(ObjNative* fn);
 	[[nodiscard]] static Value makeNil();
 

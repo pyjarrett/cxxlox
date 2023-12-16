@@ -82,12 +82,12 @@ void VM::runtimeError(const std::string& message)
 	// Print a stack trace
 	for (int i = frameCount - 1; i >= 0; --i) {
 		CallFrame* frame = &frames[i];
-		ObjFunction* fn = frame->function;
+		ObjFunction* fn = frame->closure->function;
 		// -1 since the previous instruction failed
 		const int32_t instruction = std::distance(frame->ip, &fn->chunk.code[0]) - 1;
 		std::cout << "[line " << (fn->chunk.lines[instruction]) << "] in ";
-		if (frame->function->name) {
-			std::cerr << frame->function->name->chars << '\n';
+		if (frame->closure->function->name) {
+			std::cerr << frame->closure->function->name->chars << '\n';
 		} else {
 			std::cerr << "<script>\n";
 		}
@@ -125,8 +125,8 @@ uint16_t VM::readShort()
 
 Value VM::readConstant()
 {
-	CL_ASSERT(currentFrame()->function);
-	return currentFrame()->function->chunk.constants[readByte()];
+	CL_ASSERT(currentFrame()->closure->function);
+	return currentFrame()->closure->function->chunk.constants[readByte()];
 }
 
 ObjString* VM::readString()
@@ -157,10 +157,10 @@ Value VM::peek(int distance) const
 	return stackTop[-1 - distance];
 }
 
-bool VM::call(ObjFunction* fn, int argCount)
+bool VM::call(ObjClosure* closure, int argCount)
 {
-	if (argCount != fn->arity) {
-		runtimeError(std::format("Expected {} arguments but got {}.", fn->arity, argCount));
+	if (argCount != closure->function->arity) {
+		runtimeError(std::format("Expected {} arguments but got {}.", closure->function->arity, argCount));
 		return false;
 	}
 
@@ -170,8 +170,8 @@ bool VM::call(ObjFunction* fn, int argCount)
 	}
 
 	CallFrame* frame = &frames[frameCount++];
-	frame->function = fn;
-	frame->ip = &fn->chunk.code[0];
+	frame->closure = closure;
+	frame->ip = &closure->function->chunk.code[0];
 	frame->slots = stackTop - argCount - 1;
 	return true;
 }
@@ -182,8 +182,11 @@ bool VM::callValue(Value callee, int argCount)
 {
 	if (callee.isObj()) {
 		switch (callee.toObj()->type) {
+			case ObjType::Closure:
+				return call(callee.toObj()->toClosure(), argCount);
 			case ObjType::Function:
-				return call(callee.as.obj->toFunction(), argCount);
+				CL_ASSERT(false);
+				break;
 			case ObjType::Native: {
 				ObjNative* native = callee.toObj()->toNative();
 				Value result = native->function(argCount, stackTop - argCount);
@@ -198,7 +201,7 @@ bool VM::callValue(Value callee, int argCount)
 		}
 	}
 
-	runtimeError("Can only call functions and classes.");
+	runtimeError("Can only call closures and classes.");
 	return false;
 }
 
@@ -264,7 +267,7 @@ InterpretResult VM::run()
 				std::cout << ']';
 			}
 			std::cout << "<top>\n";
-			Chunk& chunk = currentFrame()->function->chunk;
+			Chunk& chunk = currentFrame()->closure->function->chunk;
 			const auto offset = int32_t(std::distance((uint8_t*)&chunk.code[0], currentFrame()->ip));
 			CL_UNUSED(disassembleInstruction(chunk, offset));
 		}
@@ -293,6 +296,13 @@ InterpretResult VM::run()
 					return InterpretResult::RuntimeError;
 				}
 				// Deviation: no cached `frame` to update (maybe this is a speed issue?)
+			} break;
+			case OP_CLOSURE: {
+				ObjFunction* fn = readConstant().toObj()->toFunction();
+
+				// Wrap the function in a closure.
+				ObjClosure* closure = makeClosure(fn);
+				push(Value::makeClosure(closure));
 			} break;
 			case OP_RETURN: {
 				Value result = pop();
@@ -422,8 +432,10 @@ InterpretResult VM::interpret(const std::string& source)
 		return InterpretResult::CompileError;
 	}
 
-	push(Value::makeFunction(function));
-	CL_UNUSED(call(function, 0));
+	ObjClosure* closure = makeClosure(function);
+	CL_UNUSED(pop());
+	push(Value::makeClosure(closure));
+	CL_UNUSED(call(closure, 0));
 
 	return run();
 }

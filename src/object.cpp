@@ -73,9 +73,10 @@ bool isObjType(Value value, ObjType type)
 }
 
 // Deviation: was `newClosure`
-ObjClosure* makeClosure()
+ObjClosure* makeClosure(ObjFunction* fn)
 {
 	ObjClosure* closure = allocateObj<ObjClosure>(ObjType::Closure);
+	closure->function = fn;
 	return closure;
 }
 
