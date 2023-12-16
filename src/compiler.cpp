@@ -56,12 +56,15 @@ static Compiler* current = nullptr;
 
 // Tracks compilation of the top level and each Lox function.
 struct Compiler {
+	// Compilers form a stack, with each compiler taking the previously open
+	// one as its enclosing scope.
 	explicit Compiler(FunctionType type) : type(type)
 	{
+		// Track the enclosing function compiler and mark this one as current.
 		enclosing = current;
-		function = makeFunction();
 		current = this;
 
+		function = makeFunction();
 		if (type != FunctionType::Script) {
 			function->name = copyString(parser.previous.start, parser.previous.length);
 		}
@@ -73,8 +76,10 @@ struct Compiler {
 		local->name.length = 0;
 	}
 
-	// The parent function in which this compilation instance is occuring.
+	// The parent function in which this compilation instance is occurring.
 	Compiler* enclosing = nullptr;
+
+	// The related code this compiler is building.
 	ObjFunction* function = nullptr;
 	FunctionType type = FunctionType::Script;
 
