@@ -579,17 +579,20 @@ static void block()
 	consume(TokenType::RightBrace, "Expected '}' to terminate block.");
 }
 
+// Compile a function.
 static void function(FunctionType type)
 {
+	// Maximum number of function parameters.
 	constexpr int32_t kMaxFunctionArity = 255;
 
 	// Each function gets compiled by a separate compiler.
 	Compiler compiler(type);
 	current = &compiler;
+
 	beginScope();
 
+	// Parameter parsing
 	consume(TokenType::LeftParen, "Expected `(` after function name.");
-
 	if (!check(TokenType::RightParen)) {
 		do {
 			++current->function->arity;
@@ -601,23 +604,21 @@ static void function(FunctionType type)
 			defineVariable(constant);
 		} while (match(TokenType::Comma));
 	}
-
-	// consume parameter if available.
-
-	// consume parameters while there's a comma
-
 	consume(TokenType::RightParen, "Expected `)` after function parameters.");
 	consume(TokenType::LeftBrace, "Expected `{` after function parameter list.");
 
-	// contents
+	// Function body
 	block();
 
+	// Close up the function
 	ObjFunction* fn = endCompiler();
 
 	// Store the new function in the enclosing function's scope.
 	emitBytes(OP_CONSTANT, makeConstant(Value::makeFunction(fn)));
 
-	// no endScope here because there's no need to close the outermost scope.
+	// No `endScope()` here because there's no need to close the outermost scope.
+	// The call frame is going to get popped if it's an inner function, and the
+	// program is terminating if it's the outermost script level.
 }
 
 static void functionDeclaration()
