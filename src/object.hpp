@@ -17,6 +17,7 @@ enum class ObjType
 
 struct ObjString;
 struct ObjFunction;
+struct ObjClosure;
 struct ObjNative;
 
 // An opaque header applied to all object subtypes to ensure every type has a
@@ -30,6 +31,7 @@ struct Obj {
 	// Conversion to overlying types.
 	[[nodiscard]] ObjString* toString();
 	[[nodiscard]] ObjFunction* toFunction();
+	[[nodiscard]] ObjClosure* toClosure();
 	[[nodiscard]] ObjNative* toNative();
 };
 
@@ -92,6 +94,7 @@ void printObj(Obj* obj);
 
 [[nodiscard]] bool isObjType(Value value, ObjType type);
 
+[[nodiscard]] ObjClosure* makeClosure();
 [[nodiscard]] ObjFunction* makeFunction();
 
 [[nodiscard]] ObjString* copyString(const char* chars);

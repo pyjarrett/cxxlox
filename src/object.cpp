@@ -20,6 +20,12 @@ ObjFunction* Obj::toFunction()
 	return reinterpret_cast<ObjFunction*>(this);
 }
 
+ObjClosure* Obj::toClosure()
+{
+	CL_ASSERT(type == ObjType::Closure);
+	return reinterpret_cast<ObjClosure*>(this);
+}
+
 ObjNative* Obj::toNative()
 {
 	CL_ASSERT(type == ObjType::Native);
@@ -32,19 +38,24 @@ ObjString::~ObjString()
 	delete[] chars;
 }
 
+static void printFunction(ObjFunction* fn) {
+	if (fn->name == nullptr) {
+		// Top level function
+		std::cout << "<script>";
+	}
+	else {
+		std::cout << "<fn " << fn->name->chars << '>';
+	}
+}
+
 void printObj(Obj* obj)
 {
 	switch (obj->type) {
 		case ObjType::Function: {
-			ObjFunction* fn = reinterpret_cast<ObjFunction*>(obj);
-
-			if (fn->name == nullptr) {
-				// Top level function
-				std::cout << "<script>";
-			}
-			else {
-				std::cout << "<fn " << fn->name->chars << '>';
-			}
+			printFunction(obj->toFunction());
+		} break;
+		case ObjType::Closure: {
+			printFunction(obj->toClosure()->function);
 		} break;
 		case ObjType::Native: {
 			std::cout << "<native fn>";
@@ -59,6 +70,13 @@ void printObj(Obj* obj)
 bool isObjType(Value value, ObjType type)
 {
 	return value.isObj() && value.toObj()->type == type;
+}
+
+// Deviation: was `newClosure`
+ObjClosure* makeClosure()
+{
+	ObjClosure* closure = allocateObj<ObjClosure>(ObjType::Closure);
+	return closure;
 }
 
 // Deviation: was `newFunction`
