@@ -30,6 +30,8 @@ if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4820")  # Disable implicit padding warning.
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4061")  # Disable explicit enum switch handling warning.
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd5045")  # Disable explicit enum switch handling warning.
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4710")  # Disable warnings about function not being inlined
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4711")  # Disable warnings about automatic inline expansion
 endif()
 
 ###############################################################################
