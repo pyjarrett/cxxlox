@@ -4,9 +4,6 @@
 #include "common.hpp"
 #include "value.hpp"
 
-#include <cstddef>
-#include <string_view>
-
 namespace cxxlox {
 
 // Deviation: was OBJ_CLOSURE, OBJ_FUNCTION, OBJ_STRING
