@@ -209,6 +209,8 @@ static void parsePrecedence(Precedence precedence)
 	return std::memcmp(a->start, b->start, a->length) == 0;
 }
 
+// Looks in the current and enclosing scopes for a local with the given name,
+// returning the index of a local with the given name, or return -1 if not found.
 [[nodiscard]] static int resolveLocal(Compiler* compiler, Token* name)
 {
 	// Look at the current and upwards scopes for a variable of this name.
@@ -940,7 +942,7 @@ static void string([[maybe_unused]] bool canAssign)
 	emitConstant(Value::makeString(copyString(withoutQuotes.data(), withoutQuotes.length())));
 }
 
-// Emit the variable and appropriate op code to get or set the variable,
+// Emit the variable and appropriate op code to get or set a variable,
 // depending on if this is an assignment.
 static void namedVariable(Token name, bool canAssign)
 {
