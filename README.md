@@ -20,7 +20,7 @@ does things.
 
 # Building
 
-This project currently uses `cmake`, which you can build as follows.
+This project currently uses `cmake`, so you can build as follows.
 
 Use an out-of-tree build:
 
