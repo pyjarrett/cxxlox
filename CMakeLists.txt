@@ -41,10 +41,4 @@ endif()
 add_subdirectory(src)
 add_subdirectory(tests)
 
-# Provides a command to run all tests, since CLion can't do that on it's own.
-# https://stackoverflow.com/questions/733475/cmake-ctest-make-test-doesnt-build-tests#736838
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} -V -C $<CONFIG>)
-
-# check-iterate is the target to use when iterating when using tests,
-# such as TDD's red->green pattern.
-add_custom_target(check-iterate COMMAND ${CMAKE_CTEST_COMMAND} -V --rerun-failed -C $<CONFIG>)
+include(CTest)
