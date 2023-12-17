@@ -7,16 +7,21 @@
 // This file splits out the allocator because it needs the VM to do the
 // allocation since I'm using a template instead of a macro, it needs to be
 // visible.
-
 namespace cxxlox {
-// TODO: Eventually this might also take an arg pack.
+
 template <typename T>
-T* allocateObj(ObjType type)
+[[nodiscard]] constexpr bool isObjFormat()
 {
-	// TODO: Formalize this extern in a better way.
-	static_assert(offsetof(T, obj) == 0, "Obj must be the first member of the type.");
-	static_assert(std::is_standard_layout_v<T>, "Type is not standard layout.");
-	T* t = new T;
+	// A leading `obj` member variable is used for garbage collection.
+	return (offsetof(T, obj) == 0) && std::is_standard_layout_v<T>;
+}
+
+template <typename T, typename... Args>
+T* allocateObj(ObjType type, Args&&... args)
+{
+	static_assert(isObjFormat<T>(), "Type does not meet requirements to be an Obj-like type.");
+
+	T* t = new T(std::forward<Args>(args)...);
 	t->obj.type = type;
 	VM::instance().track(reinterpret_cast<Obj*>(t));
 	return t;
