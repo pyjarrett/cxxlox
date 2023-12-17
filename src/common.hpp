@@ -3,12 +3,8 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>  // for std::abort()
+#include <cstdlib> // for std::abort()
 #include <limits>
-
-#define CL_ASSERT(expr) assert(expr)
-#define CL_UNUSED(expr) (void)(expr)
-#define CL_FATAL(message) do { std::abort(); } while(0)
 
 // Compiler identification
 #define CL_COMPILER_CLANG 0
@@ -26,6 +22,35 @@
 #else
 	#error "Unknown compiler."
 #endif
+
+#if !defined(CL_DEBUG) && !defined(CL_RELEASE)
+	#error Either CL_DEBUG or CL_RELEASE must be defined.  Check the build setup.
+#endif
+
+#ifdef CL_DEBUG
+	#ifdef _WIN32
+		#include <intrin.h>
+		#define CL_BREAKPOINT() __debugbreak()
+	#endif
+#endif
+
+#ifdef CL_DEBUG
+	#define CL_ASSERT(expr)      \
+		do {                     \
+			if (!(expr)) {       \
+				CL_BREAKPOINT(); \
+				std::abort();    \
+			}                    \
+		} while (0)
+#else
+	#define CL_ASSERT(expr)
+#endif
+
+#define CL_UNUSED(expr) (void)(expr)
+#define CL_FATAL(message) \
+	do {                  \
+		std::abort();     \
+	} while (0)
 
 // A macro to be more forceful with the compiler on inlining, since
 // I wrapped some things like the current chunk and current frame in functions.
