@@ -1,5 +1,6 @@
 #include "compiler.hpp"
 
+#include "allocator.hpp"
 #include "chunk.hpp"
 #include "object.hpp"
 #include "pratt.hpp"
@@ -71,7 +72,7 @@ struct Compiler {
 		enclosing = current;
 		current = this;
 
-		function = makeFunction();
+		function = allocateObj<ObjFunction>();
 		if (type != FunctionType::Script) {
 			function->name = copyString(parser.previous.start, parser.previous.length);
 		}

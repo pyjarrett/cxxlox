@@ -301,7 +301,7 @@ InterpretResult VM::run()
 				ObjFunction* fn = readConstant().toObj()->toFunction();
 
 				// Wrap the function in a closure.
-				ObjClosure* closure = makeClosure(fn);
+				ObjClosure* closure = allocateObj<ObjClosure>(fn);
 				push(Value::makeClosure(closure));
 			} break;
 			case OP_RETURN: {
@@ -432,7 +432,7 @@ InterpretResult VM::interpret(const std::string& source)
 		return InterpretResult::CompileError;
 	}
 
-	ObjClosure* closure = makeClosure(function);
+	ObjClosure* closure = allocateObj<ObjClosure>(function);
 	CL_UNUSED(pop());
 	push(Value::makeClosure(closure));
 	CL_UNUSED(call(closure, 0));

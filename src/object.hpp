@@ -70,6 +70,8 @@ struct ObjClosure
 	Obj obj;
 	ObjFunction* function = nullptr;
 	Array<ObjUpvalue*> upvalues;
+
+	explicit ObjClosure(ObjFunction* fn);
 };
 
 // Every ObjString owns its own characters.
@@ -116,9 +118,6 @@ template <> constexpr ObjType typeOf<ObjUpvalue>() { return ObjType::Upvalue; }
 void printObj(Obj* obj);
 
 [[nodiscard]] bool isObjType(Value value, ObjType type);
-
-[[nodiscard]] ObjClosure* makeClosure(ObjFunction* fn);
-[[nodiscard]] ObjFunction* makeFunction();
 
 [[nodiscard]] ObjString* copyString(const char* chars);
 

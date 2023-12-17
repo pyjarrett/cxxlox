@@ -32,6 +32,12 @@ ObjNative* Obj::toNative()
 	return reinterpret_cast<ObjNative*>(this);
 }
 
+ObjClosure::ObjClosure(cxxlox::ObjFunction* fn)
+{
+	upvalues.reserve(fn->upvalueCount);
+	function = fn;
+}
+
 // Deviation: using destructor instead of `freeObject`
 ObjString::~ObjString()
 {
@@ -73,24 +79,6 @@ void printObj(Obj* obj)
 bool isObjType(Value value, ObjType type)
 {
 	return value.isObj() && value.toObj()->type == type;
-}
-
-// Deviation: was `newClosure`
-ObjClosure* makeClosure(ObjFunction* fn)
-{
-	ObjClosure* closure = allocateObj<ObjClosure>();
-	closure->upvalues.reserve(fn->upvalueCount);
-	closure->function = fn;
-	return closure;
-}
-
-// Deviation: was `newFunction`
-ObjFunction* makeFunction()
-{
-	ObjFunction* function = allocateObj<ObjFunction>();
-	function->arity = 0;
-	function->name = nullptr;
-	return function;
 }
 
 // FNV-1 hash
