@@ -22,6 +22,10 @@ public:
 	void write(T value);
 	void free();
 
+	// Reserve more space in the array.  Does nothing if there are more elements
+	// than the desired new capacity.
+	void reserve(int32_t newCapacity);
+
 	[[nodiscard]] int32_t capacity() const { return capacity_; }
 	[[nodiscard]] int32_t count() const { return count_; }
 
@@ -51,15 +55,28 @@ void Array<T>::write(T value)
 {
 	if (capacity_ < count_ + 1) {
 		const auto newCapacity = growCapacity(capacity_);
-		T* larger = new T[newCapacity];
-		std::copy(data, data + capacity_, larger);
-		delete[] data;
-		data = larger;
-		capacity_ = newCapacity;
+		reserve(newCapacity);
 	}
 	CL_ASSERT(count_ <= capacity_);
 	data[count_] = value;
 	++count_;
+}
+
+template <typename T>
+void Array<T>::reserve(int32_t newCapacity)
+{
+	if (newCapacity < count_) {
+		CL_FATAL("Trying to reserve array with smaller capacity than the current number of elements.");
+		return;
+	}
+
+	T* larger = new T[newCapacity];
+	std::copy(data, data + capacity_, larger);
+	delete[] data;
+	data = larger;
+	capacity_ = newCapacity;
+
+	CL_ASSERT(count_ <= newCapacity);
 }
 
 template <typename T>
