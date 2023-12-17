@@ -1,6 +1,8 @@
 #include "debug.hpp"
 
 #include "chunk.hpp"
+#include "object.hpp"
+
 #include <format>
 #include <iostream>
 
@@ -112,10 +114,16 @@ int32_t disassembleInstruction(const Chunk& chunk, int32_t offset)
 		case OP_CALL:
 			return byteInstruction("OP_CALL", chunk, offset);
 		case OP_CLOSURE: {
-			++offset;
+			++offset;  // Skip the OP_CLOSURE byte
 			const uint8_t constant = chunk.code[offset++];
-			std::cout << std::format("{:<16} {:4}", "OP_CONSTANT", constant);
+			std::cout << std::format("{:<16} {:4} ", "OP_CLOSURE", constant);
 			printValue(chunk.constants[constant]);
+			ObjFunction* function = chunk.constants[constant].toObj()->toFunction();
+			const int local = chunk.code[offset++];
+			const int index = chunk.code[offset++];
+			for (int32_t i = 0; i < function->upvalueCount; ++i) {
+				std::cout << std::format("{:<16} {:8} index {:3}\n", "", local ? "local" : "upvalue", index);
+			}
 			std::cout << '\n';
 			return offset;
 		}

@@ -39,6 +39,13 @@ struct Local {
 };
 static_assert(sizeof(Local) == 32);
 
+// A tracked upvalue, which is a variable in an outer scope which has been
+// captured by a closure.
+struct Upvalue {
+	uint8_t index = 0;
+	bool isLocal = true;
+};
+
 // Indicate whether the compiler is currently in a top level scope, or in a
 // function's scope.
 enum class FunctionType
@@ -90,6 +97,8 @@ struct Compiler {
 	// The total number of locals which have been declared.
 	int localCount = 0;
 	int scopeDepth = 0;
+
+	Upvalue upvalues[kUInt8Count];
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -224,6 +233,56 @@ static void parsePrecedence(Precedence precedence)
 		}
 	}
 
+	return -1;
+}
+
+// Track an upvalue in the given compiler.
+[[nodiscard]] static int32_t addUpvalue(Compiler* compiler, uint8_t index, bool isLocal)
+{
+	// The compiler needs to track all the locals used as upvalues to extract
+	// them when the function returns or a block ends.
+	const int upvalueCount = compiler->function->upvalueCount;
+
+	// Check to see that this upvalue hasn't already been captured by this closure.
+	for (int32_t i = 0; i < upvalueCount; ++i) {
+		if (compiler->upvalues[i].index == index && compiler->upvalues[i].isLocal == isLocal) {
+			return compiler->upvalues[i].index;
+		}
+	}
+
+	// We ran out of space to store upvalues.
+	if (upvalueCount == kUInt8Count) {
+		error("Too many closure variables in function.");
+		return 0;
+	}
+
+	compiler->upvalues[upvalueCount].index = index;
+	compiler->upvalues[upvalueCount].isLocal = isLocal;
+	return compiler->function->upvalueCount++;
+}
+
+// Looks for an upvalue in the enclosing function compiler scope.
+[[nodiscard]] static int32_t resolveUpvalue(Compiler* compiler, Token* name)
+{
+	if (!compiler->enclosing) {
+		return -1;
+	}
+
+	// Look for a local matching the upvalue.
+	int local = resolveLocal(compiler, name);
+	if (local != -1) {
+		// Found, so mark it as an upvalue.
+		return addUpvalue(compiler, static_cast<uint8_t>(local), true);
+	}
+
+	// This upvalue might already be an existing upvalue higher up in the
+	// compiler chain.
+	int upvalue = resolveUpvalue(compiler->enclosing, name);
+	if (upvalue != -1) {
+		return addUpvalue(compiler, static_cast<uint8_t>(local), false);
+	}
+
+	// Not found
 	return -1;
 }
 
@@ -615,8 +674,14 @@ static void function(FunctionType type)
 	// Close up the function
 	ObjFunction* fn = endCompiler();
 
-	// Store the new function in the enclosing function's scope.
 	emitBytes(OP_CLOSURE, makeConstant(Value::makeFunction(fn)));
+
+	// OP_CLOSURE is a variable sized instruction which includes bytes following
+	// it describing upvalues, written as (local, index) pairs.
+	for (int32_t  i = 0; i < fn->upvalueCount; ++i) {
+		emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+		emitByte(compiler.upvalues[i].index);
+	}
 
 	// No `endScope()` here because there's no need to close the outermost scope.
 	// The call frame is going to get popped if it's an inner function, and the

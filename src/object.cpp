@@ -64,6 +64,9 @@ void printObj(Obj* obj)
 			ObjString* str = reinterpret_cast<ObjString*>(obj);
 			std::cout << str->chars;
 		} break;
+		case ObjType::Upvalue:
+			std::cout << "upvalue";
+			break;
 	}
 }
 

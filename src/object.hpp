@@ -13,12 +13,14 @@ enum class ObjType
 	Function,
 	Native,
 	String,
+	Upvalue,
 };
 
 struct ObjString;
 struct ObjFunction;
 struct ObjClosure;
 struct ObjNative;
+struct ObjUpvalue;
 
 // An opaque header applied to all object subtypes to ensure every type has a
 // type and a pointer to the next type.
@@ -37,9 +39,10 @@ struct Obj {
 
 struct ObjFunction {
 	Obj obj;
-	int32_t arity = 0;
 	Chunk chunk;
 	ObjString* name = nullptr;
+	int32_t arity = 0;
+	int32_t upvalueCount = 0;
 
 	ObjFunction() = default;
 	~ObjFunction() = default;
@@ -66,6 +69,7 @@ struct ObjClosure
 {
 	Obj obj;
 	ObjFunction* function = nullptr;
+	Array<ObjUpvalue*> upvalues;
 };
 
 // Every ObjString owns its own characters.
@@ -88,6 +92,15 @@ struct ObjString {
 	ObjString& operator=(ObjString&&) = delete;
 
 	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
+};
+
+// Tracks the location of an upvalue.
+struct ObjUpvalue {
+	Obj obj;
+
+	// Pointer to location of an upvalue.  This might be on the stack or on
+	// the heap.
+	Value* location = nullptr;
 };
 
 // clang-format off
