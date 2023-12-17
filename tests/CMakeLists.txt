@@ -6,6 +6,7 @@ add_executable(object_tests
 )
 target_link_libraries(object_tests cxxlox_vm GTest::gtest_main)
 target_include_directories(object_tests SYSTEM PRIVATE "../src")
+target_compile_definitions(object_tests PRIVATE ${CL_COMMON_DEFNS})
 gtest_discover_tests(object_tests)
 
 add_executable(table_tests
@@ -13,6 +14,7 @@ add_executable(table_tests
 )
 target_link_libraries(table_tests cxxlox_vm GTest::gtest_main)
 target_include_directories(table_tests SYSTEM PRIVATE "../src")
+target_compile_definitions(table_tests PRIVATE ${CL_COMMON_DEFNS})
 gtest_discover_tests(table_tests)
 
 add_executable(vm_tests
@@ -20,4 +22,5 @@ add_executable(vm_tests
 )
 target_link_libraries(vm_tests cxxlox_vm GTest::gtest_main)
 target_include_directories(vm_tests SYSTEM PRIVATE "../src")
+target_compile_definitions(vm_tests PRIVATE ${CL_COMMON_DEFNS})
 gtest_discover_tests(vm_tests)

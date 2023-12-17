@@ -34,7 +34,19 @@ if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd5045")  # Disable explicit enum switch handling warning.
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4710")  # Disable warnings about function not being inlined
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4711")  # Disable warnings about automatic inline expansion
-endif()
+endif ()
+
+set(CL_COMMON_DEFNS "")
+if (CMAKE_BUILD_TYPE MATCHES Debug OR CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
+    list(APPEND CL_COMMON_DEFNS CL_DEBUG)
+endif ()
+
+if (CMAKE_BUILD_TYPE MATCHES Release)
+    list(APPEND CL_COMMON_DEFNS CL_RELEASE)
+endif ()
+
+# Export a compilation database to most easily check commands being run.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 ###############################################################################
 # Libraries and Executables

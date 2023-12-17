@@ -38,3 +38,4 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     target_compile_definitions(cxxlox_vm PRIVATE DEBUG_PRINT_CODE DEBUG_TRACE_EXECUTION)
 endif()
 
+target_compile_definitions(cxxlox_vm PRIVATE ${CL_COMMON_DEFNS})
