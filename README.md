@@ -17,3 +17,41 @@ close to the book in a more type-safe C++ way, and then refactoring into
 more idiomatic C++ as I go.  This won't ever be a production bytecode
 VM, but it should eventually show my C++ version of how the book
 does things.
+
+# Building
+
+This project currently uses `cmake`, which you can build as follows.
+
+Use an out-of-tree build:
+
+```
+mkdir build
+cd build
+cmake ..         # Generate project
+cmake --build .  # Build project
+ctest            # Run unit tests
+```
+
+# Running a `.lox` file
+
+This will build the bytecode virtual machine and run the associated file:
+
+Example:
+
+```
+python .\scripts\run_sample.py .\samples\expressions.lox --config Release
+```
+
+# Acceptance Test Battery
+
+Acceptance tests compare the standard output of running the VM on a file ending
+in `.lox`, against the expected output in a a similarly named `.expected` file.
+
+The acceptance test script builds the VM and then runs the tests
+in Release mode.
+
+Run the test battery like:
+
+```
+python .\scripts\run_acceptance_test.py
+```
