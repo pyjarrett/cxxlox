@@ -19,6 +19,8 @@ set(PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory(vendor/googletest-1.14.0)
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
+include(CTest)
+
 ###############################################################################
 # Configuration
 ###############################################################################
@@ -41,4 +43,3 @@ endif()
 add_subdirectory(src)
 add_subdirectory(tests)
 
-include(CTest)
