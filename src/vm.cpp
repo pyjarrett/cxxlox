@@ -98,7 +98,7 @@ void VM::runtimeError(const std::string& message)
 
 void VM::defineNative(const char* name, NativeFunction fn)
 {
-	ObjNative* native = allocateObj<ObjNative>(ObjType::Native);
+	ObjNative* native = allocateObj<ObjNative>();
 	push(Value::makeString(copyString(name)));
 	push(Value::makeNative(native));
 	native->function = fn;

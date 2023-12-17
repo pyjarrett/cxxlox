@@ -90,6 +90,16 @@ struct ObjString {
 	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };
 
+// clang-format off
+// Compile-time switch which is more obvious than a static member of an object type.
+template <typename T> constexpr ObjType typeOf();
+template <> constexpr ObjType typeOf<ObjClosure>() { return ObjType::Closure; }
+template <> constexpr ObjType typeOf<ObjFunction>() { return ObjType::Function; }
+template <> constexpr ObjType typeOf<ObjNative>() { return ObjType::Native; }
+template <> constexpr ObjType typeOf<ObjString>() { return ObjType::String; }
+template <> constexpr ObjType typeOf<ObjUpvalue>() { return ObjType::Upvalue; }
+// clang-format on
+
 void printObj(Obj* obj);
 
 [[nodiscard]] bool isObjType(Value value, ObjType type);

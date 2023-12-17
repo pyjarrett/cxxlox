@@ -17,12 +17,12 @@ template <typename T>
 }
 
 template <typename T, typename... Args>
-T* allocateObj(ObjType type, Args&&... args)
+T* allocateObj(Args&&... args)
 {
 	static_assert(isObjFormat<T>(), "Type does not meet requirements to be an Obj-like type.");
 
 	T* t = new T(std::forward<Args>(args)...);
-	t->obj.type = type;
+	t->obj.type = typeOf<T>();
 	VM::instance().track(reinterpret_cast<Obj*>(t));
 	return t;
 }

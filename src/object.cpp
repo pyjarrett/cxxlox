@@ -75,7 +75,8 @@ bool isObjType(Value value, ObjType type)
 // Deviation: was `newClosure`
 ObjClosure* makeClosure(ObjFunction* fn)
 {
-	ObjClosure* closure = allocateObj<ObjClosure>(ObjType::Closure);
+	ObjClosure* closure = allocateObj<ObjClosure>();
+	closure->upvalues.reserve(fn->upvalueCount);
 	closure->function = fn;
 	return closure;
 }
@@ -83,7 +84,7 @@ ObjClosure* makeClosure(ObjFunction* fn)
 // Deviation: was `newFunction`
 ObjFunction* makeFunction()
 {
-	ObjFunction* function = allocateObj<ObjFunction>(ObjType::Function);
+	ObjFunction* function = allocateObj<ObjFunction>();
 	function->arity = 0;
 	function->name = nullptr;
 	return function;
@@ -105,7 +106,7 @@ ObjFunction* makeFunction()
 // character pointer.
 [[nodiscard]] ObjString* allocateString(char* chars, uint32_t length, uint32_t hash)
 {
-	ObjString* str = allocateObj<ObjString>(ObjType::String);
+	ObjString* str = allocateObj<ObjString>();
 	str->chars = chars;
 	str->length = length;
 	str->hash = hash;
