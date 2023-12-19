@@ -40,7 +40,10 @@ def main():
         else:
             print(f'[FAIL] {file}')
             for (real, expected) in merged:
-                print(f'    {real} <=> {expected}')
+                if real == expected:
+                    print(f'    {real}')
+                else:
+                    print(f'    {real} <=> {expected}')
             fails += 1
 
     print(f"Passed: {passes}")
