@@ -27,6 +27,8 @@ def main():
             expected_output = expected_file.read()
         real_output = run_program(file, Config.Release)
 
+        if real_output is None:
+            real_output = ""
         real_lines = real_output.splitlines()
         expected_lines = expected_output.splitlines()
         merged = list(zip_longest(real_lines, expected_lines, fillvalue=""))
