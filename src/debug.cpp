@@ -17,6 +17,16 @@ void disassembleChunk(const Chunk& chunk, const char* name)
 		offset = disassembleInstruction(chunk, offset);
 	}
 	std::cout << '\n';
+
+	if (chunk.constants.count() > 0) {
+		std::cout << "  << CONSTANTS >> \n";
+		for (int32_t i = 0; i < chunk.constants.count(); ++i) {
+			std::cout << std::format("{:5} ", i);
+			printValue(chunk.constants[i]);
+			std::cout << '\n';
+		}
+		std::cout << '\n';
+	}
 }
 
 /// Print a simple instruction and move to the next byte offset.
