@@ -62,6 +62,10 @@ def run_program(program_name: Path, config: Config) -> str:
         print(cpe)
         return ""
     except FileNotFoundError as fnfe:
-        print(f"Failed to run vm {vm} on {program_name}")
+        print(f"File not found to run vm {vm} on {program_name}")
         print(fnfe)
+        return ""
+    except Exception as ex:
+        print(f"An unexpected error occurred while running vm {vm} on {program_name}")
+        print(ex)
         return ""
