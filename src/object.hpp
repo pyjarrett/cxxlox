@@ -111,6 +111,15 @@ struct ObjUpvalue {
 	// the heap.
 	Value* location = nullptr;
 
+	// When the upvalue is removed from the stack, this is the place to where
+	// the value will be moved.  The upvalue is heap allocated, so this keeps
+	// the value alive.  `location` will point to this value when this
+	// occurs.
+	Value closed = Value::makeNil();
+
+	// The next lower (previous) pvalue in the stack.
+	ObjUpvalue* next = nullptr;
+
 	explicit ObjUpvalue(Value* slot);
 };
 

@@ -61,6 +61,9 @@ struct VM {
 	[[nodiscard]] bool call(ObjClosure* closure, int argCount);
 	[[nodiscard]] bool callValue(Value callee, int argCount);
 
+	[[nodiscard]] ObjUpvalue* captureUpvalue(Value* local);
+	void closeUpvalues(Value* last);
+
 	void runtimeError(const std::string& message);
 
 	void defineNative(const char* name, NativeFunction fn);
@@ -99,6 +102,9 @@ private:
 
 	/// Global variables.
 	Table globals;
+
+	// A list of live upvalues.
+	ObjUpvalue* openUpvalues = nullptr;
 
 	static VM* s_instance;
 };

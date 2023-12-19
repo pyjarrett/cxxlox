@@ -1,0 +1,41 @@
+{
+    var a = "a";
+    fun a0() { print a; }
+    fun a1() { print a; }
+
+    var b = "b";
+    fun b0() { print b; }
+
+    var c = "c";
+    fun c0() { print c; }
+
+    fun abc0() {
+        print a;
+        print b;
+        print c;
+    }
+
+    fun abc1() {
+        print a;
+        print b;
+        print c;
+    }
+
+    fun telephone(fn) {
+        fn();
+    }
+
+    a0();
+    a1();
+    b0();
+    c0();
+    abc0();
+    abc1();
+
+    telephone(a0);
+    telephone(a1);
+    telephone(b0);
+    telephone(c0);
+    telephone(abc0);
+    telephone(abc1);
+}

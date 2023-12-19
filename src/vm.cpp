@@ -205,9 +205,45 @@ bool VM::callValue(Value callee, int argCount)
 	return false;
 }
 
-static ObjUpvalue* captureUpvalue(Value* local) {
+ObjUpvalue* VM::captureUpvalue(Value* local) {
+	// The value pointed to by local might already be capture as an upvalue.
+	// Look for it, so it isn't captured twice.
+	ObjUpvalue* previous = nullptr;
+	ObjUpvalue* current = openUpvalues;
+	while (current != nullptr && reinterpret_cast<std::uintptr_t>(current->location) > reinterpret_cast<std::uintptr_t>(local)) {
+		previous = current;
+		current = current->next;
+	}
+	// Found a previously existing upvalue.
+	if (current && current->location == local) {
+		return current;
+	}
+
+	// Couldn't find a preexisting form of this upvalue, so create a new one.
 	ObjUpvalue* createdUpvalue = allocateObj<ObjUpvalue>(local);
+
+	// Stitch the new value into our linked list.
+	createdUpvalue->next = current;
+	if (previous) {
+		previous->next = createdUpvalue;
+	}
+	else {
+		openUpvalues = createdUpvalue;
+	}
+
 	return createdUpvalue;
+}
+
+void VM::closeUpvalues(Value* last)
+{
+	// Pop all open upvalues from the top of the upvalues list, to and
+	// including the given value.
+	while (openUpvalues && openUpvalues->location > last) {
+		ObjUpvalue* current = openUpvalues;
+		current->closed = *current->location;
+		current->location = &current->closed;
+		openUpvalues = openUpvalues->next;
+	}
 }
 
 void VM::freeObjects()
@@ -323,12 +359,17 @@ InterpretResult VM::run()
 					}
 				}
 			} break;
+			case OP_CLOSE_UPVALUE:
+				closeUpvalues(stackTop - 1);
+				CL_UNUSED(pop());
+				break;
 			case OP_RETURN: {
 				Value result = pop();
 				// Deviation: no need to update cached `frame` since hidden by function,
 				// but need to capture it here to prevent using the parent frame after
 				// frame count change.
 				CallFrame* lastFrame = currentFrame();
+				closeUpvalues(lastFrame->slots);
 				--frameCount;
 				if (frameCount == 0) {
 					CL_UNUSED(pop());

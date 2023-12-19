@@ -36,6 +36,9 @@ struct Local {
 	// declared, but not yet initialized (defined).
 	int32_t depth = -1;
 
+	// Is this local captured as an upvalue?
+	bool captured = false;
+
 	static constexpr int32_t kUninitialized = -1;
 };
 static_assert(sizeof(Local) == 32);
@@ -275,6 +278,9 @@ static void parsePrecedence(Precedence precedence)
 
 	// Look for a local matching the upvalue.
 	if (int local = resolveLocal(compiler->enclosing, name); local != -1) {
+		// This value now requires it to stay alive, since it's an upvalue.
+		compiler->enclosing->locals[local].captured = true;
+
 		// Found, so mark it as an upvalue.
 		return addUpvalue(compiler, static_cast<uint8_t>(local), true);
 	}
@@ -570,9 +576,15 @@ static void endScope()
 {
 	--current->scopeDepth;
 
-	// Pop all variables at the current scope off the stack.
+	// Remove variables from the current scope from the top of the stack.
+	// Variables which are captured as upvalues must be saved, but all others
+	// can just be popped.
 	while (current->localCount > 0 && current->locals[current->localCount - 1].depth > current->scopeDepth) {
-		emitByte(OP_POP);
+		if (current->locals[current->localCount - 1].captured) {
+			emitByte(OP_CLOSE_UPVALUE);
+		} else {
+			emitByte(OP_POP);
+		}
 		--current->localCount;
 	}
 }
@@ -681,7 +693,7 @@ static void function(FunctionType type)
 
 	// OP_CLOSURE is a variable sized instruction which includes bytes following
 	// it describing upvalues, written as (local, index) pairs.
-	for (int32_t  i = 0; i < fn->upvalueCount; ++i) {
+	for (int32_t i = 0; i < fn->upvalueCount; ++i) {
 		emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
 		emitByte(compiler.upvalues[i].index);
 	}

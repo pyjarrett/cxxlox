@@ -125,6 +125,8 @@ int32_t disassembleInstruction(const Chunk& chunk, int32_t offset)
 			return simpleInstruction("OP_NEGATE", offset);
 		case OP_PRINT:
 			return simpleInstruction("OP_PRINT", offset);
+		case OP_CLOSE_UPVALUE:
+			return simpleInstruction("OP_CLOSE_UPVALUE", offset);
 		case OP_POP:
 			return simpleInstruction("OP_POP", offset);
 		case OP_GET_LOCAL:
