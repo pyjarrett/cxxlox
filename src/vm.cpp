@@ -205,6 +205,11 @@ bool VM::callValue(Value callee, int argCount)
 	return false;
 }
 
+static ObjUpvalue* captureUpvalue(Value* local) {
+	ObjUpvalue* createdUpvalue = allocateObj<ObjUpvalue>(local);
+	return createdUpvalue;
+}
+
 void VM::freeObjects()
 {
 	Obj* obj = objects;
@@ -262,11 +267,10 @@ InterpretResult VM::run()
 		{
 			std::cout << "             [*]";
 			for (Value* slot = stack; slot != stackTop; ++slot) {
-				std::cout << '[';
+				std::cout << " : ";
 				printValue(*slot);
-				std::cout << ']';
 			}
-			std::cout << "<top>\n";
+			std::cout << " [top]\n";
 			Chunk& chunk = currentFrame()->closure->function->chunk;
 			const auto offset = int32_t(std::distance((uint8_t*)&chunk.code[0], currentFrame()->ip));
 			CL_UNUSED(disassembleInstruction(chunk, offset));
@@ -303,6 +307,21 @@ InterpretResult VM::run()
 				// Wrap the function in a closure.
 				ObjClosure* closure = allocateObj<ObjClosure>(fn);
 				push(Value::makeClosure(closure));
+				// Read all of the upvalue (local?, index) pairs and set up the
+				// environment for the closure.
+				for (int32_t i = 0; i < closure->function->upvalueCount; ++i) {
+					// If it's a local, just pull it from the stack.
+					bool isLocal = (readByte() != 0);
+					int32_t index = readByte();
+					if (isLocal) {
+						closure->upvalues[i] = captureUpvalue(currentFrame()->slots + index);
+					}
+					else {
+						// The current frame is the surrounding frame of the closure
+						// being loaded here.
+						closure->upvalues[i] = currentFrame()->closure->upvalues[index];
+					}
+				}
 			} break;
 			case OP_RETURN: {
 				Value result = pop();
@@ -371,6 +390,14 @@ InterpretResult VM::run()
 				ObjString* name = readString();
 				globals.set(name, peek(0));
 				CL_UNUSED(pop());
+			} break;
+			case OP_GET_UPVALUE: {
+				const int32_t slot = readByte();
+				push(*currentFrame()->closure->upvalues[slot]->location);
+			} break;
+			case OP_SET_UPVALUE: {
+				const int32_t slot = readByte();
+				*currentFrame()->closure->upvalues[slot]->location = peek(0);
 			} break;
 			case OP_SET_LOCAL: {
 				const uint8_t slot = readByte();

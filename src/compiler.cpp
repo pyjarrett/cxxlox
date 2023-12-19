@@ -265,22 +265,24 @@ static void parsePrecedence(Precedence precedence)
 // Looks for an upvalue in the enclosing function compiler scope.
 [[nodiscard]] static int32_t resolveUpvalue(Compiler* compiler, Token* name)
 {
+	CL_ASSERT(compiler);
+	CL_ASSERT(name);
+
+	// There are no more compilers to check.
 	if (!compiler->enclosing) {
 		return -1;
 	}
 
 	// Look for a local matching the upvalue.
-	int local = resolveLocal(compiler, name);
-	if (local != -1) {
+	if (int local = resolveLocal(compiler->enclosing, name); local != -1) {
 		// Found, so mark it as an upvalue.
 		return addUpvalue(compiler, static_cast<uint8_t>(local), true);
 	}
 
 	// This upvalue might already be an existing upvalue higher up in the
 	// compiler chain.
-	int upvalue = resolveUpvalue(compiler->enclosing, name);
-	if (upvalue != -1) {
-		return addUpvalue(compiler, static_cast<uint8_t>(local), false);
+	if (int upvalue = resolveUpvalue(compiler->enclosing, name); upvalue != -1) {
+		return addUpvalue(compiler, static_cast<uint8_t>(upvalue), false);
 	}
 
 	// Not found
@@ -1015,14 +1017,17 @@ static void namedVariable(Token name, bool canAssign)
 	// Decide if this is an operation on a global or a local.
 	uint8_t getOp, setOp;
 	int arg = resolveLocal(current, &name);
-	if (arg == -1) {
+	if (arg != -1) {
+		getOp = OP_GET_LOCAL;
+		setOp = OP_SET_LOCAL;
+	} else if ((arg = resolveUpvalue(current, &name)) != -1) {
+		getOp = OP_GET_UPVALUE;
+		setOp = OP_SET_UPVALUE;
+	} else {
 		// Global
 		arg = identifierConstant(&name);
 		getOp = OP_GET_GLOBAL;
 		setOp = OP_SET_GLOBAL;
-	} else {
-		getOp = OP_GET_LOCAL;
-		setOp = OP_SET_LOCAL;
 	}
 
 	CL_ASSERT(arg >= 0 && arg <= std::numeric_limits<uint8_t>::max());

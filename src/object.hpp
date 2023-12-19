@@ -65,10 +65,17 @@ struct ObjNative
 	NativeFunction function = nullptr;
 };
 
+// Wraps an ObjFunction and tracks upvalues.
 struct ObjClosure
 {
 	Obj obj;
+
+	// The function underlying this function.  Multiple closures might reference
+	// the same function.
 	ObjFunction* function = nullptr;
+
+	// Closed over values which might on the stack above this function, or
+	// stored on the heap.
 	Array<ObjUpvalue*> upvalues;
 
 	explicit ObjClosure(ObjFunction* fn);
@@ -103,6 +110,8 @@ struct ObjUpvalue {
 	// Pointer to location of an upvalue.  This might be on the stack or on
 	// the heap.
 	Value* location = nullptr;
+
+	explicit ObjUpvalue(Value* slot);
 };
 
 // clang-format off

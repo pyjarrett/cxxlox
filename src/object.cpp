@@ -34,7 +34,13 @@ ObjNative* Obj::toNative()
 
 ObjClosure::ObjClosure(cxxlox::ObjFunction* fn)
 {
+	CL_ASSERT(fn);
+
+	// Set up space for upvalues.
 	upvalues.reserve(fn->upvalueCount);
+	for (int32_t i = 0; i < fn->upvalueCount; ++i) {
+		upvalues.write(nullptr);
+	}
 	function = fn;
 }
 
@@ -42,6 +48,11 @@ ObjClosure::ObjClosure(cxxlox::ObjFunction* fn)
 ObjString::~ObjString()
 {
 	delete[] chars;
+}
+
+ObjUpvalue::ObjUpvalue(cxxlox::Value* slot)
+{
+	location = slot;
 }
 
 static void printFunction(ObjFunction* fn) {

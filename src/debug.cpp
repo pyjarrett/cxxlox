@@ -59,6 +59,28 @@ void disassembleChunk(const Chunk& chunk, const char* name)
 	return offset + 3;
 }
 
+[[nodiscard]] static int32_t closureInstruction(const Chunk& chunk, int32_t offset)
+{
+	// Skip the OP_CLOSURE byte
+	++offset;
+
+	// Closure location in the constants table.
+	const uint8_t closureConstantIndex = chunk.code[offset++];
+	std::cout << std::format("{:<16} {:4} ", "OP_CLOSURE", closureConstantIndex);
+	printValue(chunk.constants[closureConstantIndex]);
+	std::cout << '\n';
+
+	// OP_CLOSURE is variably sized, and contains (local?, index) pairs for
+	// every upvalue stored within.
+	ObjFunction* function = chunk.constants[closureConstantIndex].toObj()->toFunction();
+	for (int32_t i = 0; i < function->upvalueCount; ++i) {
+		const int local = chunk.code[offset++];
+		const int index = chunk.code[offset++];
+		std::cout << std::format("{:<16} {:8} index {:3}\n", "", local ? "local" : "upvalue", index);
+	}
+	return offset;
+}
+
 int32_t disassembleInstruction(const Chunk& chunk, int32_t offset)
 {
 	std::cout << std::format("{:04} ", offset);
@@ -105,6 +127,10 @@ int32_t disassembleInstruction(const Chunk& chunk, int32_t offset)
 			return byteInstruction("OP_SET_LOCAL", chunk, offset);
 		case OP_SET_GLOBAL:
 			return constantInstruction("OP_SET_GLOBAL", chunk, offset);
+		case OP_SET_UPVALUE:
+			return byteInstruction("OP_SET_UPVALUE", chunk, offset);
+		case OP_GET_UPVALUE:
+			return byteInstruction("OP_GET_UPVALUE", chunk, offset);
 		case OP_JUMP:
 			return jumpInstruction("OP_JUMP", 1, chunk, offset);
 		case OP_JUMP_IF_FALSE:
@@ -113,20 +139,8 @@ int32_t disassembleInstruction(const Chunk& chunk, int32_t offset)
 			return jumpInstruction("OP_LOOP", -1, chunk, offset);
 		case OP_CALL:
 			return byteInstruction("OP_CALL", chunk, offset);
-		case OP_CLOSURE: {
-			++offset;  // Skip the OP_CLOSURE byte
-			const uint8_t constant = chunk.code[offset++];
-			std::cout << std::format("{:<16} {:4} ", "OP_CLOSURE", constant);
-			printValue(chunk.constants[constant]);
-			ObjFunction* function = chunk.constants[constant].toObj()->toFunction();
-			const int local = chunk.code[offset++];
-			const int index = chunk.code[offset++];
-			for (int32_t i = 0; i < function->upvalueCount; ++i) {
-				std::cout << std::format("{:<16} {:8} index {:3}\n", "", local ? "local" : "upvalue", index);
-			}
-			std::cout << '\n';
-			return offset;
-		}
+		case OP_CLOSURE:
+			return closureInstruction(chunk, offset);
 		case OP_RETURN:
 			return simpleInstruction("OP_RETURN", offset);
 		case OP_EQUAL:
