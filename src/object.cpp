@@ -63,6 +63,14 @@ static void printFunction(ObjFunction* fn) {
 	else {
 		std::cout << "<fn " << fn->name->chars << '>';
 	}
+
+	// Deviation: Show arity and number of upvalues.
+	std::cout << "(" << fn->arity;
+
+	if (fn->upvalueCount > 0) {
+		std::cout << ", ^" << fn->upvalueCount;
+	}
+	std::cout << ") ";
 }
 
 void printObj(Obj* obj)
