@@ -9,7 +9,9 @@ from project import build_bytecode_vm, project_root, run_program
 
 def main():
     # Run all tests in release
-    build_bytecode_vm(Config.Release)
+    if not build_bytecode_vm(Config.Release):
+        print("Build step failed.")
+        sys.exit(1)
 
     fails = 0
     passes = 0

@@ -27,7 +27,7 @@ def cmake_build_root(config: Config) -> str:
     return f"build-{config.name.lower()}"
 
 
-def build_bytecode_vm(config: Config):
+def build_bytecode_vm(config: Config) -> bool:
     root_dir: Path = project_root()
     previous_dir = os.getcwd()
     os.chdir(root_dir)
@@ -40,12 +40,21 @@ def build_bytecode_vm(config: Config):
 
     # The build directory might exist, but CMake might not have been run yet.
     if not os.path.exists("CMakeCache.txt"):
-        subprocess.run(f"cmake -DCMAKE_BUILD_TYPE={config.name} ..".split())
+        result: subprocess.CompletedProcess = subprocess.run(f"cmake -DCMAKE_BUILD_TYPE={config.name} ..".split())
+        if result.returncode != 0:
+            print("Failed to generate CMake project.")
+            return False
+
 
     # The true "build" step.
     # --config is only needed in multi-config generations, like Visual Studio
-    subprocess.run(f"cmake --build . -j32 --config={config.name}".split())
+    result = subprocess.run(f"cmake --build . -j32 --config={config.name}".split())
+    if result.returncode != 0:
+        print("Building the VM failed.")
+        return False
+
     os.chdir(previous_dir)
+    return True
 
 
 def vm_path(config: Config) -> Path:
