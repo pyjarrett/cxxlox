@@ -1,9 +1,9 @@
 #include "vm.hpp"
 
-#include "allocator.hpp"
 #include "chunk.hpp"
 #include "common.hpp"
 #include "compiler.hpp"
+#include "object_allocator.hpp"
 
 #ifdef DEBUG_TRACE_EXECUTION
 	#include "debug.hpp"

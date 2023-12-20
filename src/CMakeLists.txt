@@ -4,7 +4,9 @@ set(CXXLOX_SRCS
     common.cpp
     compiler.cpp
     debug.cpp
+    memory.cpp
     object.cpp
+    object_allocator.cpp
     pratt.cpp
     scanner.cpp
     table.cpp
@@ -21,7 +23,9 @@ set(CXXLOX_HEADERS
     common.hpp
     compiler.hpp
     debug.hpp
+    memory.hpp
     object.hpp
+    object_allocator.hpp
     pratt.hpp
     scanner.hpp
     table.hpp

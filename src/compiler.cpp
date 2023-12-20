@@ -1,8 +1,8 @@
 #include "compiler.hpp"
 
-#include "allocator.hpp"
 #include "chunk.hpp"
 #include "object.hpp"
+#include "object_allocator.hpp"
 #include "pratt.hpp"
 #include "scanner.hpp"
 

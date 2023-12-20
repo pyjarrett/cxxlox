@@ -1,5 +1,6 @@
 #pragma once
 
+#include "memory.hpp"
 #include "object.hpp"
 #include "vm.hpp"
 #include <type_traits>
@@ -21,7 +22,9 @@ T* allocateObj(Args&&... args)
 {
 	static_assert(isObjFormat<T>(), "Type does not meet requirements to be an Obj-like type.");
 
-	T* t = new T(std::forward<Args>(args)...);
+	void* location = nullptr;
+	location = realloc(location, 0, sizeof(T));
+	T* t = new (location) T(std::forward<Args>(args)...);
 	t->obj.type = typeOf<T>();
 	VM::instance().track(reinterpret_cast<Obj*>(t));
 	return t;

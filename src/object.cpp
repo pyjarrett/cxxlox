@@ -1,9 +1,8 @@
 #include "object.hpp"
 
-#include "allocator.hpp"
+#include "object_allocator.hpp"
 #include "vm.hpp"
-
-#include <cstring>  // for strnlen
+#include <cstring> // for strnlen
 #include <iostream>
 
 namespace cxxlox {
