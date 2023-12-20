@@ -1,7 +1,6 @@
 import argparse
-import os
 from pathlib import Path
-import subprocess
+import sys
 
 from config import Config
 from project import build_bytecode_vm, run_program
@@ -17,10 +16,13 @@ def main():
                         help='Configuration type')
     args = parser.parse_args()
 
-    program_name: str = Path(args.program_path)
+    program_name: Path = Path(args.program_path)
     config: Config = Config[args.config]
 
-    build_bytecode_vm(config)
+    if not build_bytecode_vm(config):
+        print("Failed to build the virtual machine.")
+        sys.exit(1)
+
     print(run_program(program_name, config))
 
 
