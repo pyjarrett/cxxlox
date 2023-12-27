@@ -56,10 +56,6 @@ struct Compiler;
 // handles it.
 static Parser parser;
 
-namespace clox {
-static Compiler* current = nullptr;
-}
-
 // Tracks compilation of the top level and each Lox function.
 struct Compiler {
 	// Compilers form a stack, with each compiler taking the previously open
@@ -1032,7 +1028,6 @@ ObjFunction* compile(const std::string& source)
 
 	// FIXME: This is a horribly bad idea.
 	static Compiler compiler(nullptr, FunctionType::Script);
-	clox::current = &compiler;
 
 	// Reset the parser.
 	parser = {};
@@ -1040,11 +1035,10 @@ ObjFunction* compile(const std::string& source)
 	parser.advance();
 
 	while (!parser.match(TokenType::Eof)) {
-		clox::current->declaration();
+		compiler.declaration();
 	}
 	parser.consume(TokenType::Eof, "Expected end of expression.");
-	ObjFunction* function = clox::current->end();
-	clox::current = clox::current->enclosing;
+	ObjFunction* function = compiler.end();
 
 	return parser.hadError ? nullptr : function;
 }
