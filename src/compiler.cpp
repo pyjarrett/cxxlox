@@ -121,6 +121,8 @@ struct Compiler {
 	void functionDeclaration();
 	void varDeclaration();
 
+	void defineFunction(FunctionType type);
+
 	void statement();
 	void printStatement();
 	void forStatement();
@@ -498,50 +500,45 @@ void Compiler::namedVariable(Token name, bool canAssign)
 }
 
 // Compile a function.
-static void function(FunctionType type)
+void Compiler::defineFunction(FunctionType type)
 {
 	// Maximum number of function parameters.
 	constexpr int32_t kMaxFunctionArity = 255;
 
 	// Each function gets compiled by a separate compiler.
-	Compiler compiler(clox::current, type);
-	clox::current = &compiler;
+	Compiler compiler(this, type);
 
-	clox::current->beginScope();
+	compiler.beginScope();
 
 	// Parameter parsing
 	parser.consume(TokenType::LeftParen, "Expected `(` after function name.");
 	if (!parser.check(TokenType::RightParen)) {
 		do {
-			++clox::current->function->arity;
-			if (clox::current->function->arity > kMaxFunctionArity) {
+			++compiler.function->arity;
+			if (compiler.function->arity > kMaxFunctionArity) {
 				parser.errorAtCurrent("Can't have more than 255 parameters.");
 			}
 
-			const uint8_t constant = clox::current->parseVariable("Expected parameter name.");
-			clox::current->defineVariable(constant);
+			const uint8_t constant = compiler.parseVariable("Expected parameter name.");
+			compiler.defineVariable(constant);
 		} while (parser.match(TokenType::Comma));
 	}
 	parser.consume(TokenType::RightParen, "Expected `)` after function parameters.");
 	parser.consume(TokenType::LeftBrace, "Expected `{` after function parameter list.");
 
 	// Function body
-	clox::current->block();
+	compiler.block();
 
 	// Close up the function
-	ObjFunction* fn = clox::current->end();
+	ObjFunction* fn = compiler.end();
 
-	// FIXME: Still have functions depending on clox::current
-	clox::current = clox::current->enclosing;
-
-	Compiler* enclosing = clox::current;
-	enclosing->emitBytes(OP_CLOSURE, enclosing->makeConstant(Value::makeFunction(fn)));
+	emitBytes(OP_CLOSURE, makeConstant(Value::makeFunction(fn)));
 
 	// OP_CLOSURE is a variable sized instruction which includes bytes following
 	// it describing upvalues, written as (local, index) pairs.
 	for (int32_t i = 0; i < fn->upvalueCount; ++i) {
-		enclosing->emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
-		enclosing->emitByte(compiler.upvalues[i].index);
+		emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+		emitByte(compiler.upvalues[i].index);
 	}
 
 	// No `endScope()` here because there's no need to close the outermost scope.
@@ -575,7 +572,7 @@ void Compiler::functionDeclaration()
 	markInitialized();
 
 	// This isn't part of a top level script.
-	cxxlox::function(FunctionType::Function);
+	defineFunction(FunctionType::Function);
 	defineVariable(global);
 }
 
