@@ -50,17 +50,12 @@ enum class FunctionType
 	Script
 };
 
-struct Compiler;
-
-// Global compilation state.  Not preferred, but how the book
-// handles it.
-static Parser parser;
-
 // Tracks compilation of the top level and each Lox function.
 struct Compiler {
 	// Compilers form a stack, with each compiler taking the previously open
 	// one as its enclosing scope.
-	explicit Compiler(Compiler* enclosing, FunctionType type) : enclosing(enclosing), type(type)
+	explicit Compiler(Compiler* enclosing, FunctionType type, Parser& parser)
+		: enclosing(enclosing), type(type), parser(parser)
 	{
 		function = allocateObj<ObjFunction>();
 		if (type != FunctionType::Script) {
@@ -133,6 +128,8 @@ struct Compiler {
 
 	// The parent function in which this compilation instance is occurring.
 	Compiler* enclosing = nullptr;
+
+	Parser& parser;
 
 	// The related code this compiler is building.
 	ObjFunction* function = nullptr;
@@ -258,6 +255,8 @@ ObjFunction* Compiler::end()
 ///////////////////////////////////////////////////////////////////////////////
 static void parsePrecedence(Compiler* compiler, Precedence precedence)
 {
+	Parser& parser = compiler->parser;
+
 	// Read the token for the rule we want to act on.
 	parser.advance();
 	ParseFn prefixRule = getRule(parser.previous.type)->prefix;
@@ -415,6 +414,8 @@ void Compiler::declareVariable()
 
 static uint8_t argumentList(Compiler* compiler)
 {
+	Parser& parser = compiler->parser;
+
 	uint8_t argCount = 0;
 	if (!parser.check(TokenType::RightParen)) {
 		do {
@@ -544,7 +545,7 @@ void Compiler::defineFunction(FunctionType type)
 	constexpr int32_t kMaxFunctionArity = 255;
 
 	// Each function gets compiled by a separate compiler.
-	Compiler compiler(this, type);
+	Compiler compiler(this, type, this->parser);
 
 	compiler.beginScope();
 
@@ -843,6 +844,8 @@ static void orOperator(Compiler* compiler, bool canAssign)
 
 static void binary(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
+	Parser& parser = compiler->parser;
+
 	const TokenType operatorType = parser.previous.type;
 	const ParseRule* rule = getRule(operatorType);
 	// Parse the next level up, since all our binary rules are left associative.
@@ -896,12 +899,12 @@ static void call(Compiler* compiler, bool canAssign)
 static void grouping(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
 	compiler->expression();
-	parser.consume(TokenType::RightParen, "Expected ')' after expression.");
+	compiler->parser.consume(TokenType::RightParen, "Expected ')' after expression.");
 }
 
 static void unary(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
-	const TokenType operatorType = parser.previous.type;
+	const TokenType operatorType = compiler->parser.previous.type;
 
 	// Compile the expression the unary applies to.
 	parsePrecedence(compiler, PREC_UNARY);
@@ -922,6 +925,7 @@ static void unary(Compiler* compiler, [[maybe_unused]] bool canAssign)
 
 static void number(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
+	Parser& parser = compiler->parser;
 	double value;
 	const auto result = std::from_chars(parser.previous.start, parser.previous.start + parser.previous.length, value);
 
@@ -934,19 +938,19 @@ static void number(Compiler* compiler, [[maybe_unused]] bool canAssign)
 
 static void string(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
-	const std::string_view previous = parser.previous.view();
+	const std::string_view previous = compiler->parser.previous.view();
 	const std::string_view withoutQuotes = previous.substr(1, previous.length() - 2);
 	compiler->emitConstant(Value::makeString(copyString(withoutQuotes.data(), withoutQuotes.length())));
 }
 
 static void variable(Compiler* compiler, bool canAssign)
 {
-	compiler->namedVariable(parser.previous, canAssign);
+	compiler->namedVariable(compiler->parser.previous, canAssign);
 }
 
 static void literal(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
-	switch (parser.previous.type) {
+	switch (compiler->parser.previous.type) {
 		case TokenType::Nil:
 			compiler->emitByte(OP_NIL);
 			break;
@@ -1022,16 +1026,11 @@ static const ParseRule* getRule(TokenType type)
 ///////////////////////////////////////////////////////////////////////////////
 ObjFunction* compile(const std::string& source)
 {
-	// FIXME: This is very unsafe.
-	// Maybe something with iterators over a string might be better?
-	initScanner(source.data());
+	Parser parser(source);
+	Compiler compiler(nullptr, FunctionType::Script, parser);
 
-	Compiler compiler(nullptr, FunctionType::Script);
-
-	// Reset the parser.
-	parser = {};
+	// Prime the pump.
 	parser.advance();
-
 	while (!parser.match(TokenType::Eof)) {
 		compiler.declaration();
 	}

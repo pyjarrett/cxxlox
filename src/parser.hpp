@@ -21,6 +21,8 @@ struct Parser {
 	[[nodiscard]] bool check(TokenType type) const;
 	[[nodiscard]] bool match(TokenType type);
 
+	explicit Parser(const std::string& source) : scanner(source) {}
+
 	Token current;
 	Token previous;
 
@@ -29,6 +31,9 @@ struct Parser {
 	// Flag to set on parser error to allow it to resync without blasting out
 	// innumerable errors while finding a synchronization point.
 	bool panicMode = false;
+
+private:
+	Scanner scanner;
 };
 
 } // namespace cxxlox

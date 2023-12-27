@@ -100,7 +100,7 @@ void Parser::advance()
 
 	// Skip through error tokens until we arrive at a good point.
 	while (true) {
-		current = scanToken();
+		current = scanner.scanToken();
 		if (current.type != TokenType::Error) {
 			break;
 		}

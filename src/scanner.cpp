@@ -6,60 +6,69 @@
 
 namespace cxxlox {
 
-static Scanner scanner;
-
-void initScanner(const char* source)
+Scanner::Scanner(const std::string& source) : source(source)
 {
-	scanner.start = source;
-	scanner.current = source;
-	scanner.line = 1;
+	start = this->source.data();
+	current = this->source.data();
+	line = 1;
 }
 
-[[nodiscard]] static bool isAtEnd()
+
+[[nodiscard]] static bool isDigit(char c)
+{
+	return c >= '0' && c <= '9';
+}
+
+[[nodiscard]] static bool isAlpha(char c)
+{
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_');
+}
+
+bool Scanner::isAtEnd()
 {
 	// Assumes input source is null terminated.
-	return *scanner.current == '\0';
+	return *current == '\0';
 }
 
 // Looks at the next character without advancing the scanner.
-[[nodiscard]] static char peek()
+char Scanner::peek()
 {
-	return *scanner.current;
+	return *current;
 }
 
 // Looks ahead two characters without advancing the scanner.
-[[nodiscard]] static char peekNext()
+char Scanner::peekNext()
 {
 	if (isAtEnd()) {
 		return '\0';
 	}
-	return scanner.current[1];
+	return current[1];
 }
 
 // Advance and return the previous character.
-static char advance()
+char Scanner::advance()
 {
-	++scanner.current;
-	return scanner.current[-1];
+	++current;
+	return current[-1];
 }
 
 // Advance ONLY if the current character is the given character.
-[[nodiscard]] static bool match(char ch)
+bool Scanner::match(char ch)
 {
-	if (*scanner.current != ch) {
+	if (*current != ch) {
 		return false;
 	}
 
-	++scanner.current;
+	++current;
 	return true;
 }
 
-[[nodiscard]] static int64_t currentLexemeSize()
+int64_t Scanner::currentLexemeSize()
 {
-	return std::distance(scanner.start, scanner.current);
+	return std::distance(start, current);
 }
 
-static void skipWhitespace()
+void Scanner::skipWhitespace()
 {
 	while (true) {
 		const char ch = peek();
@@ -72,7 +81,7 @@ static void skipWhitespace()
 				CL_UNUSED(advance());
 				break;
 			case '\n':
-				++scanner.line;
+				++line;
 				CL_UNUSED(advance());
 				break;
 			// Line comments aren't technically whitespace, but treat them as so.
@@ -93,34 +102,34 @@ static void skipWhitespace()
 	}
 }
 
-[[nodiscard]] static Token makeToken(TokenType type)
+Token Scanner::makeToken(TokenType type)
 {
 	return Token {
-		.start = scanner.start,
+		.start = start,
 		.length = static_cast<uint32_t>(currentLexemeSize()),
-		.line = scanner.line,
+		.line = line,
 		.type = type,
 	};
 }
 
 // Assumes that the lifetime of the `message` parameter does not need to
 // be managed by this function.
-[[nodiscard]] static Token errorToken(const char* message)
+Token Scanner::errorToken(const char* message)
 {
 	return Token {
 		.start = message,
 		.length = static_cast<uint32_t>(strlen(message)), // FIXME: Shouldn't use this, just to get it working.
-		.line = scanner.line,
+		.line = line,
 		.type = TokenType::Error,
 	};
 }
 
 // This does not support escaped characters.
-[[nodiscard]] static Token makeString()
+Token Scanner::makeString()
 {
 	while (peek() != '"' && !isAtEnd()) {
 		if (peek() == '\n') {
-			++scanner.line;
+			++line;
 		}
 		advance();
 	}
@@ -134,17 +143,7 @@ static void skipWhitespace()
 	return makeToken(TokenType::String);
 }
 
-[[nodiscard]] static bool isDigit(char c)
-{
-	return c >= '0' && c <= '9';
-}
-
-[[nodiscard]] static bool isAlpha(char c)
-{
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_');
-}
-
-[[nodiscard]] static Token number()
+Token Scanner::number()
 {
 	// Parse a number, which is like [:digit:]+([.][:digit:]*)?
 
@@ -170,58 +169,72 @@ static void skipWhitespace()
 }
 
 // Return the keyword type if the remaining text matches, or an identifier otherwise.
-[[nodiscard]] static TokenType checkKeyword(int charsAlreadyMatched, std::string_view remaining, TokenType keyword)
+TokenType Scanner::checkKeyword(int charsAlreadyMatched, std::string_view remaining, TokenType keyword)
 {
-	std::string_view inBuffer(scanner.start + charsAlreadyMatched, remaining.length());
+	std::string_view inBuffer(start + charsAlreadyMatched, remaining.length());
 	return (inBuffer == remaining) ? keyword : TokenType::Identifier;
 }
 
-
 // Determine the type of an identifier currently held by the scanner, it could
 // be a keyword, or a name.
-[[nodiscard]] static TokenType identifierType()
+TokenType Scanner::identifierType()
 {
 	// The scanner containers the current state of the next token.
 	// Parse the type of the next token like it's a "trie" to look for keywords.
-	switch (scanner.start[0]) {
-		case 'a': return checkKeyword(1, "nd", TokenType::And);
-		case 'c': return checkKeyword(1, "lass", TokenType::Class);
-		case 'e': return checkKeyword(1, "lse", TokenType::Else);
+	switch (start[0]) {
+		case 'a':
+			return checkKeyword(1, "nd", TokenType::And);
+		case 'c':
+			return checkKeyword(1, "lass", TokenType::Class);
+		case 'e':
+			return checkKeyword(1, "lse", TokenType::Else);
 			// More advanced case
-		case 'f':
-		{
+		case 'f': {
 			if (currentLexemeSize() < 2) {
 				return TokenType::Identifier;
 			}
 
 			// Look at the next character.
-			switch (scanner.start[1]) {
-				case 'a': return checkKeyword(2, "lse", TokenType::False);
-				case 'o': return checkKeyword(2, "r", TokenType::For);
-				case 'u': return checkKeyword(2, "n", TokenType::Fun);
+			switch (start[1]) {
+				case 'a':
+					return checkKeyword(2, "lse", TokenType::False);
+				case 'o':
+					return checkKeyword(2, "r", TokenType::For);
+				case 'u':
+					return checkKeyword(2, "n", TokenType::Fun);
 				default:
 					return TokenType::Identifier;
 			}
 		}
-		case 'i': return checkKeyword(1, "f", TokenType::If);
-		case 'n': return checkKeyword(1, "il", TokenType::Nil);
-		case 'o': return checkKeyword(1, "r", TokenType::Or);
-		case 'p': return checkKeyword(1, "rint", TokenType::Print);
-		case 'r': return checkKeyword(1, "eturn", TokenType::Return);
-		case 's': return checkKeyword(1, "uper", TokenType::Super);
+		case 'i':
+			return checkKeyword(1, "f", TokenType::If);
+		case 'n':
+			return checkKeyword(1, "il", TokenType::Nil);
+		case 'o':
+			return checkKeyword(1, "r", TokenType::Or);
+		case 'p':
+			return checkKeyword(1, "rint", TokenType::Print);
+		case 'r':
+			return checkKeyword(1, "eturn", TokenType::Return);
+		case 's':
+			return checkKeyword(1, "uper", TokenType::Super);
 		case 't': {
 			if (currentLexemeSize() < 2) {
 				return TokenType::Identifier;
 			}
-			switch(scanner.start[1]) {
-				case 'h': return checkKeyword(1, "his", TokenType::This);
-				case 'r': return checkKeyword(1, "rue", TokenType::True);
+			switch (start[1]) {
+				case 'h':
+					return checkKeyword(1, "his", TokenType::This);
+				case 'r':
+					return checkKeyword(1, "rue", TokenType::True);
 				default:
 					return TokenType::Identifier;
 			}
 		}
-		case 'v': return checkKeyword(1, "ar", TokenType::Var);
-		case 'w': return checkKeyword(1, "hile", TokenType::While);
+		case 'v':
+			return checkKeyword(1, "ar", TokenType::Var);
+		case 'w':
+			return checkKeyword(1, "hile", TokenType::While);
 	}
 
 	// If the identifier hasn't been matched against a keyword, then it is a name.
@@ -230,7 +243,7 @@ static void skipWhitespace()
 
 // Parse an identifier or a keyword.  The token type will be determined by
 // identifierType().
-[[nodiscard]] static Token identifier()
+Token Scanner::identifier()
 {
 	// We only end up in this function if we started with an alphabetic character
 	// or a _, so all remaining characters can be alphanumeric or an underscore.
@@ -241,13 +254,13 @@ static void skipWhitespace()
 	return makeToken(identifierType());
 }
 
-Token scanToken()
+Token Scanner::scanToken()
 {
 	// Skip possible whitespace between characters.
 	skipWhitespace();
 
 	// Reset the next token to start here.
-	scanner.start = scanner.current;
+	start = current;
 
 	// Report and end-of-file token if there's no more source to look at.
 	if (isAtEnd()) {
@@ -287,7 +300,6 @@ Token scanToken()
 			return errorToken("Unexpected character.");
 	}
 	// clang-format on
-
 }
 
 } // namespace cxxlox
