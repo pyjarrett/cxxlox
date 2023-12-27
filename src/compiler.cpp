@@ -106,53 +106,6 @@ static void expression();
 static const ParseRule* getRule(TokenType type);
 
 ///////////////////////////////////////////////////////////////////////////////
-// Token operations
-///////////////////////////////////////////////////////////////////////////////
-static void advance()
-{
-	parser.previous = parser.current;
-
-	// Skip through error tokens until we arrive at a good point.
-	while (true) {
-		parser.current = scanToken();
-		if (parser.current.type != TokenType::Error) {
-			break;
-		}
-
-		parser.errorAtCurrent(parser.current.start);
-	}
-}
-
-// Expect the next token to be a given type, move along if it is, otherwise
-// emit an error message.
-static void consume(TokenType type, const char* message)
-{
-	if (parser.current.type == type) {
-		advance();
-		return;
-	}
-
-	parser.errorAtCurrent(message);
-}
-
-// See if the current token is the given type.
-[[nodiscard]] static bool check(TokenType type)
-{
-	return parser.current.type == type;
-}
-
-// Advance and return true if the current token type is found, false otherwise
-[[nodiscard]] static bool match(TokenType type)
-{
-	if (!check(type)) {
-		return false;
-	}
-
-	advance();
-	return true;
-}
-
-///////////////////////////////////////////////////////////////////////////////
 // State management
 ///////////////////////////////////////////////////////////////////////////////
 [[nodiscard]] CL_FORCE_INLINE Chunk* currentChunk()
@@ -283,7 +236,7 @@ static void endScope()
 static void parsePrecedence(Precedence precedence)
 {
 	// Read the token for the rule we want to act on.
-	advance();
+	parser.advance();
 	ParseFn prefixRule = getRule(parser.previous.type)->prefix;
 	if (!prefixRule) {
 		parser.error("Expected an expression.");
@@ -294,12 +247,12 @@ static void parsePrecedence(Precedence precedence)
 	prefixRule(canAssign);
 
 	while (precedence <= getRule(parser.current.type)->precedence) {
-		advance();
+		parser.advance();
 		ParseFn infixRule = getRule(parser.previous.type)->infix;
 		infixRule(canAssign);
 	}
 
-	if (canAssign && match(TokenType::Equal)) {
+	if (canAssign && parser.match(TokenType::Equal)) {
 		parser.error("Invalid assignment target.");
 	}
 }
@@ -433,16 +386,16 @@ static void declareVariable()
 static uint8_t argumentList()
 {
 	uint8_t argCount = 0;
-	if (!check(TokenType::RightParen)) {
+	if (!parser.check(TokenType::RightParen)) {
 		do {
 			expression();
 			if (argCount == 255) {
 				parser.error("Can't have more than 255 arguments.");
 			}
 			++argCount;
-		} while (match(TokenType::Comma));
+		} while (parser.match(TokenType::Comma));
 	}
-	consume(TokenType::RightParen, "Expected ')' after argument list.");
+	parser.consume(TokenType::RightParen, "Expected ')' after argument list.");
 	return argCount;
 }
 
@@ -450,7 +403,7 @@ static uint8_t argumentList()
 // If the variable is a local variable, then return 0.
 [[nodiscard]] static uint8_t parseVariable(const char* errorMessage)
 {
-	consume(TokenType::Identifier, errorMessage);
+	parser.consume(TokenType::Identifier, errorMessage);
 	declareVariable();
 
 	// The variable is local.
@@ -590,10 +543,10 @@ static void expression()
 
 static void block()
 {
-	while (!check(TokenType::Eof) && !check(TokenType::RightBrace)) {
+	while (!parser.check(TokenType::Eof) && !parser.check(TokenType::RightBrace)) {
 		declaration();
 	}
-	consume(TokenType::RightBrace, "Expected '}' to terminate block.");
+	parser.consume(TokenType::RightBrace, "Expected '}' to terminate block.");
 }
 
 // Compile a function.
@@ -609,8 +562,8 @@ static void function(FunctionType type)
 	beginScope();
 
 	// Parameter parsing
-	consume(TokenType::LeftParen, "Expected `(` after function name.");
-	if (!check(TokenType::RightParen)) {
+	parser.consume(TokenType::LeftParen, "Expected `(` after function name.");
+	if (!parser.check(TokenType::RightParen)) {
 		do {
 			++current->function->arity;
 			if (current->function->arity > kMaxFunctionArity) {
@@ -619,10 +572,10 @@ static void function(FunctionType type)
 
 			const uint8_t constant = parseVariable("Expected parameter name.");
 			defineVariable(constant);
-		} while (match(TokenType::Comma));
+		} while (parser.match(TokenType::Comma));
 	}
-	consume(TokenType::RightParen, "Expected `)` after function parameters.");
-	consume(TokenType::LeftBrace, "Expected `{` after function parameter list.");
+	parser.consume(TokenType::RightParen, "Expected `)` after function parameters.");
+	parser.consume(TokenType::LeftBrace, "Expected `{` after function parameter list.");
 
 	// Function body
 	block();
@@ -657,12 +610,12 @@ static void functionDeclaration()
 static void varDeclaration()
 {
 	const uint8_t global = parseVariable("Expected a variable name.");
-	if (match(TokenType::Equal)) {
+	if (parser.match(TokenType::Equal)) {
 		expression();
 	} else {
 		emitByte(OP_NIL);
 	}
-	consume(TokenType::Semicolon, "Expected a ';' after a variable declaration.");
+	parser.consume(TokenType::Semicolon, "Expected a ';' after a variable declaration.");
 	defineVariable(global);
 }
 
@@ -670,54 +623,14 @@ static void varDeclaration()
 static void printStatement()
 {
 	expression();
-	consume(TokenType::Semicolon, "Expected a ';' after print statement.");
+	parser.consume(TokenType::Semicolon, "Expected a ';' after print statement.");
 	emitByte(OP_PRINT);
-}
-
-// Finds the next "known good" point if the parser is in a bad state.  This
-// reduces cascading errors.
-static void synchronize()
-{
-	CL_ASSERT(parser.panicMode);
-
-	parser.panicMode = false;
-	while (parser.current.type != TokenType::Eof) {
-		// Semicolons terminate statements, so that means this might be a good spot.
-		if (parser.previous.type == TokenType::Semicolon) {
-			return;
-		}
-
-		// Control flow and declarations are another good place to try to parse again.
-		switch (parser.current.type) {
-			case TokenType::Class:
-				[[fallthrough]];
-			case TokenType::Fun:
-				[[fallthrough]];
-			case TokenType::Var:
-				[[fallthrough]];
-			case TokenType::For:
-				[[fallthrough]];
-			case TokenType::If:
-				[[fallthrough]];
-			case TokenType::While:
-				[[fallthrough]];
-			case TokenType::Print:
-				[[fallthrough]];
-			case TokenType::Return:
-				return;
-			default:
-				break;
-		}
-
-		// Move forward and look again for a good point to try parsing again.
-		advance();
-	}
 }
 
 static void expressionStatement()
 {
 	expression();
-	consume(TokenType::Semicolon, "Expected a ';' after expression.");
+	parser.consume(TokenType::Semicolon, "Expected a ';' after expression.");
 	emitByte(OP_POP);
 }
 
@@ -749,12 +662,12 @@ static void expressionStatement()
 static void forStatement()
 {
 	beginScope();
-	consume(TokenType::LeftParen, "Expected '(' after `for`.");
+	parser.consume(TokenType::LeftParen, "Expected '(' after `for`.");
 
 	// Variable declaration and/or initializer
-	if (match(TokenType::Var)) {
+	if (parser.match(TokenType::Var)) {
 		varDeclaration();
-	} else if (match(TokenType::Semicolon)) {
+	} else if (parser.match(TokenType::Semicolon)) {
 		// No initializer.
 	} else {
 		expressionStatement();
@@ -763,21 +676,21 @@ static void forStatement()
 	// Condition
 	int loopStart = currentChunk()->code.count();
 	int exitJump = -1;
-	if (!match(TokenType::Semicolon)) {
+	if (!parser.match(TokenType::Semicolon)) {
 		expression();
-		consume(TokenType::Semicolon, "Expected ';' after condition.");
+		parser.consume(TokenType::Semicolon, "Expected ';' after condition.");
 		exitJump = emitJump(OP_JUMP_IF_FALSE);
 		emitByte(OP_POP);
 	}
 
 	// Increment
-	if (!match(TokenType::RightParen)) {
+	if (!parser.match(TokenType::RightParen)) {
 		// Skip increment on initial loop pass.
 		const int bodyJump = emitJump(OP_JUMP);
 		const int increment = currentChunk()->code.count();
 		expression();
 		emitByte(OP_POP);
-		consume(TokenType::RightParen, "Expected ')' after `for` clauses.");
+		parser.consume(TokenType::RightParen, "Expected ')' after `for` clauses.");
 
 		// Start the next loop.
 		emitLoop(loopStart);
@@ -817,9 +730,9 @@ static void forStatement()
 static void ifStatement()
 {
 	// Starts immediately after `if`.
-	consume(TokenType::LeftParen, "Expected a '(' after `if`.");
+	parser.consume(TokenType::LeftParen, "Expected a '(' after `if`.");
 	expression();
-	consume(TokenType::RightParen, "Expected a ')' after `if` condition.");
+	parser.consume(TokenType::RightParen, "Expected a ')' after `if` condition.");
 
 	const int thenJump = emitJump(OP_JUMP_IF_FALSE);
 	emitByte(OP_POP);
@@ -829,7 +742,7 @@ static void ifStatement()
 	patchJump(thenJump);
 	emitByte(OP_POP);
 
-	if (match(TokenType::Else)) {
+	if (parser.match(TokenType::Else)) {
 		statement();
 	}
 	patchJump(elseJump);
@@ -841,11 +754,11 @@ static void returnStatement()
 		parser.error("Cannot return from top-level code.");
 	}
 
-	if (match(TokenType::Semicolon)) {
+	if (parser.match(TokenType::Semicolon)) {
 		emitReturn();
 	} else {
 		expression();
-		consume(TokenType::Semicolon, "Expected ';' after return expression.");
+		parser.consume(TokenType::Semicolon, "Expected ';' after return expression.");
 		emitByte(OP_RETURN);
 	}
 }
@@ -864,9 +777,9 @@ static void whileStatement()
 {
 	const int loopStart = currentChunk()->code.count();
 
-	consume(TokenType::LeftParen, "Expected '(' after while.");
+	parser.consume(TokenType::LeftParen, "Expected '(' after while.");
 	expression();
-	consume(TokenType::RightParen, "Expected ')' after while condition.");
+	parser.consume(TokenType::RightParen, "Expected ')' after while condition.");
 
 	const int exitJump = emitJump(OP_JUMP_IF_FALSE);
 	emitByte(OP_POP);
@@ -879,9 +792,9 @@ static void whileStatement()
 
 static void declaration()
 {
-	if (match(TokenType::Fun)) {
+	if (parser.match(TokenType::Fun)) {
 		functionDeclaration();
-	} else if (match(TokenType::Var)) {
+	} else if (parser.match(TokenType::Var)) {
 		varDeclaration();
 	} else {
 		statement();
@@ -890,23 +803,23 @@ static void declaration()
 	// The parser could be in an error state, if so, then synchronize to a reasonable
 	// "known good" point.
 	if (parser.panicMode) {
-		synchronize();
+		parser.synchronize();
 	}
 }
 
 static void statement()
 {
-	if (match(TokenType::Print)) {
+	if (parser.match(TokenType::Print)) {
 		printStatement();
-	} else if (match(TokenType::For)) {
+	} else if (parser.match(TokenType::For)) {
 		forStatement();
-	} else if (match(TokenType::If)) {
+	} else if (parser.match(TokenType::If)) {
 		ifStatement();
-	} else if (match(TokenType::Return)) {
+	} else if (parser.match(TokenType::Return)) {
 		returnStatement();
-	} else if (match(TokenType::While)) {
+	} else if (parser.match(TokenType::While)) {
 		whileStatement();
-	} else if (match(TokenType::LeftBrace)) {
+	} else if (parser.match(TokenType::LeftBrace)) {
 		beginScope();
 		block();
 		endScope();
@@ -920,7 +833,7 @@ static void statement()
 static void grouping([[maybe_unused]] bool canAssign)
 {
 	expression();
-	consume(TokenType::RightParen, "Expected ')' after expression.");
+	parser.consume(TokenType::RightParen, "Expected ')' after expression.");
 }
 
 static void unary([[maybe_unused]] bool canAssign)
@@ -985,7 +898,7 @@ static void namedVariable(Token name, bool canAssign)
 
 	CL_ASSERT(arg >= 0 && arg <= std::numeric_limits<uint8_t>::max());
 
-	if (canAssign && match(TokenType::Equal)) {
+	if (canAssign && parser.match(TokenType::Equal)) {
 		expression();
 		emitBytes(setOp, static_cast<uint8_t>(arg));
 	} else {
@@ -1087,12 +1000,12 @@ ObjFunction* compile(const std::string& source)
 	// Reset the parser.
 	parser = {};
 
-	advance();
+	parser.advance();
 
-	while (!match(TokenType::Eof)) {
+	while (!parser.match(TokenType::Eof)) {
 		declaration();
 	}
-	consume(TokenType::Eof, "Expected end of expression.");
+	parser.consume(TokenType::Eof, "Expected end of expression.");
 	ObjFunction* function = endCompiler();
 
 	return parser.hadError ? nullptr : function;

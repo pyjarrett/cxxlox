@@ -11,6 +11,15 @@ struct Parser {
 	void errorAt(const Token& token, const char* message);
 	void errorAtCurrent(const char* message);
 	void error(const char* message);
+	void synchronize();
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Token operations
+	///////////////////////////////////////////////////////////////////////////////
+	void advance();
+	void consume(TokenType type, const char* message);
+	[[nodiscard]] bool check(TokenType type) const;
+	[[nodiscard]] bool match(TokenType type);
 
 	Token current;
 	Token previous;
