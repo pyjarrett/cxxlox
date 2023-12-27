@@ -99,6 +99,7 @@ struct Compiler {
 
 	void markInitialized();
 	void defineVariable(uint8_t global);
+	void namedVariable(Token name, bool canAssign);
 
 	[[nodiscard]] uint8_t parseVariable(const char* errorMessage);
 
@@ -448,6 +449,36 @@ void Compiler::defineVariable(uint8_t global)
 		return;
 	}
 	emitBytes(OP_DEFINE_GLOBAL, global);
+}
+
+// Emit the variable and appropriate op code to get or set a variable,
+// depending on if this is an assignment.
+void Compiler::namedVariable(Token name, bool canAssign)
+{
+	// Decide if this is an operation on a global or a local.
+	uint8_t getOp, setOp;
+	int arg = resolveLocal(&name);
+	if (arg != -1) {
+		getOp = OP_GET_LOCAL;
+		setOp = OP_SET_LOCAL;
+	} else if ((arg = resolveUpvalue(&name)) != -1) {
+		getOp = OP_GET_UPVALUE;
+		setOp = OP_SET_UPVALUE;
+	} else {
+		// Global
+		arg = identifierConstant(&name);
+		getOp = OP_GET_GLOBAL;
+		setOp = OP_SET_GLOBAL;
+	}
+
+	CL_ASSERT(arg >= 0 && arg <= std::numeric_limits<uint8_t>::max());
+
+	if (canAssign && parser.match(TokenType::Equal)) {
+		expression(clox::current);
+		emitBytes(setOp, static_cast<uint8_t>(arg));
+	} else {
+		emitBytes(getOp, static_cast<uint8_t>(arg));
+	}
 }
 
 // Short-circuiting `and` operator.
@@ -895,39 +926,9 @@ static void string(Compiler* compiler, [[maybe_unused]] bool canAssign)
 	compiler->emitConstant(Value::makeString(copyString(withoutQuotes.data(), withoutQuotes.length())));
 }
 
-// Emit the variable and appropriate op code to get or set a variable,
-// depending on if this is an assignment.
-static void namedVariable(Token name, bool canAssign)
-{
-	// Decide if this is an operation on a global or a local.
-	uint8_t getOp, setOp;
-	int arg = clox::current->resolveLocal(&name);
-	if (arg != -1) {
-		getOp = OP_GET_LOCAL;
-		setOp = OP_SET_LOCAL;
-	} else if ((arg = clox::current->resolveUpvalue(&name)) != -1) {
-		getOp = OP_GET_UPVALUE;
-		setOp = OP_SET_UPVALUE;
-	} else {
-		// Global
-		arg = clox::current->identifierConstant(&name);
-		getOp = OP_GET_GLOBAL;
-		setOp = OP_SET_GLOBAL;
-	}
-
-	CL_ASSERT(arg >= 0 && arg <= std::numeric_limits<uint8_t>::max());
-
-	if (canAssign && parser.match(TokenType::Equal)) {
-		expression(clox::current);
-		clox::current->emitBytes(setOp, static_cast<uint8_t>(arg));
-	} else {
-		clox::current->emitBytes(getOp, static_cast<uint8_t>(arg));
-	}
-}
-
 static void variable(Compiler* compiler, bool canAssign)
 {
-	namedVariable(parser.previous, canAssign);
+	compiler->namedVariable(parser.previous, canAssign);
 }
 
 static void literal(Compiler* compiler, [[maybe_unused]] bool canAssign)
