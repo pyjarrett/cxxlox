@@ -64,12 +64,8 @@ static Compiler* current = nullptr;
 struct Compiler {
 	// Compilers form a stack, with each compiler taking the previously open
 	// one as its enclosing scope.
-	explicit Compiler(FunctionType type) : type(type)
+	explicit Compiler(Compiler* enclosing, FunctionType type) : enclosing(enclosing), type(type)
 	{
-		// Track the enclosing function compiler and mark this one as current.
-		enclosing = clox::current;
-		clox::current = this;
-
 		function = allocateObj<ObjFunction>();
 		if (type != FunctionType::Script) {
 			function->name = copyString(parser.previous.start, parser.previous.length);
@@ -81,6 +77,9 @@ struct Compiler {
 		local->name.start = ""; // So the user can't refer to it.
 		local->name.length = 0;
 	}
+
+	// Deviation: was renamed endCompiler()
+	[[nodiscard]] ObjFunction* end();
 
 	// Looks in the current and enclosing scopes for a local with the given name,
 	// returning the index of a local with the given name, or return -1 if not found.
@@ -223,20 +222,16 @@ void Compiler::emitReturn()
 	emitByte(OP_RETURN);
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Compiler
-///////////////////////////////////////////////////////////////////////////////
-static ObjFunction* endCompiler()
+ObjFunction* Compiler::end()
 {
-	clox::current->emitReturn();
-	ObjFunction* function = clox::current->function;
+	// TODO: Prevent other member functions from being called after this is called.
+	emitReturn();
 #ifdef DEBUG_PRINT_CODE
 	if (!parser.hadError) {
-		disassembleChunk(*clox::current->chunk(), function->name != nullptr ? function->name->chars : "<script>");
+		disassembleChunk(*chunk(), function->name != nullptr ? function->name->chars : "<script>");
 	}
 #endif
 
-	clox::current = clox::current->enclosing;
 	return function;
 }
 
@@ -360,25 +355,25 @@ void Compiler::endScope()
 	// Remove variables from the current scope from the top of the stack.
 	// Variables which are captured as upvalues must be saved, but all others
 	// can just be popped.
-	while (clox::current->localCount > 0 && clox::current->locals[clox::current->localCount - 1].depth > clox::current->scopeDepth) {
-		if (clox::current->locals[clox::current->localCount - 1].captured) {
+	while (localCount > 0 && locals[localCount - 1].depth > scopeDepth) {
+		if (locals[localCount - 1].captured) {
 			emitByte(OP_CLOSE_UPVALUE);
 		} else {
 			emitByte(OP_POP);
 		}
-		--clox::current->localCount;
+		--localCount;
 	}
 }
 
 void Compiler::addLocal(Token name)
 {
 	// The VM only supports a limited number of locals.
-	if (clox::current->localCount == kUInt8Count) {
+	if (localCount == kUInt8Count) {
 		parser.error("Too many local variables in function.");
 		return;
 	}
 
-	Local* local = &clox::current->locals[clox::current->localCount++];
+	Local* local = &locals[localCount++];
 	local->name = name;
 	local->depth = Local::kUninitialized;
 }
@@ -582,7 +577,7 @@ static void function(FunctionType type)
 	constexpr int32_t kMaxFunctionArity = 255;
 
 	// Each function gets compiled by a separate compiler.
-	Compiler compiler(type);
+	Compiler compiler(clox::current, type);
 	clox::current = &compiler;
 
 	clox::current->beginScope();
@@ -607,15 +602,19 @@ static void function(FunctionType type)
 	block();
 
 	// Close up the function
-	ObjFunction* fn = endCompiler();
+	ObjFunction* fn = clox::current->end();
 
-	clox::current->emitBytes(OP_CLOSURE, clox::current->makeConstant(Value::makeFunction(fn)));
+	// FIXME: Still have functions depending on clox::current
+	clox::current = clox::current->enclosing;
+
+	Compiler* enclosing = clox::current;
+	enclosing->emitBytes(OP_CLOSURE, enclosing->makeConstant(Value::makeFunction(fn)));
 
 	// OP_CLOSURE is a variable sized instruction which includes bytes following
 	// it describing upvalues, written as (local, index) pairs.
 	for (int32_t i = 0; i < fn->upvalueCount; ++i) {
-		clox::current->emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
-		clox::current->emitByte(compiler.upvalues[i].index);
+		enclosing->emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+		enclosing->emitByte(compiler.upvalues[i].index);
 	}
 
 	// No `endScope()` here because there's no need to close the outermost scope.
@@ -1020,7 +1019,7 @@ ObjFunction* compile(const std::string& source)
 	initScanner(source.data());
 
 	// FIXME: This is a horribly bad idea.
-	static Compiler compiler(FunctionType::Script);
+	static Compiler compiler(nullptr, FunctionType::Script);
 	clox::current = &compiler;
 
 	// Reset the parser.
@@ -1032,7 +1031,8 @@ ObjFunction* compile(const std::string& source)
 		declaration();
 	}
 	parser.consume(TokenType::Eof, "Expected end of expression.");
-	ObjFunction* function = endCompiler();
+	ObjFunction* function = clox::current->end();
+	clox::current = clox::current->enclosing;
 
 	return parser.hadError ? nullptr : function;
 }
