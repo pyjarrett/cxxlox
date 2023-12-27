@@ -136,7 +136,7 @@ struct Compiler {
 ///////////////////////////////////////////////////////////////////////////////
 static void declaration();
 static void statement();
-static void expression();
+static void expression(Compiler* compiler);
 static const ParseRule* getRule(TokenType type);
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -241,7 +241,7 @@ ObjFunction* Compiler::end()
 ///////////////////////////////////////////////////////////////////////////////
 // Parsing
 ///////////////////////////////////////////////////////////////////////////////
-static void parsePrecedence(Precedence precedence)
+static void parsePrecedence(Compiler* compiler, Precedence precedence)
 {
 	// Read the token for the rule we want to act on.
 	parser.advance();
@@ -252,12 +252,12 @@ static void parsePrecedence(Precedence precedence)
 	}
 
 	const bool canAssign = precedence <= PREC_ASSIGNMENT;
-	prefixRule(clox::current, canAssign);
+	prefixRule(compiler, canAssign);
 
 	while (precedence <= getRule(parser.current.type)->precedence) {
 		parser.advance();
 		ParseFn infixRule = getRule(parser.previous.type)->infix;
-		infixRule(clox::current, canAssign);
+		infixRule(compiler, canAssign);
 	}
 
 	if (canAssign && parser.match(TokenType::Equal)) {
@@ -398,12 +398,12 @@ void Compiler::declareVariable()
 	addLocal(*name);
 }
 
-static uint8_t argumentList()
+static uint8_t argumentList(Compiler* compiler)
 {
 	uint8_t argCount = 0;
 	if (!parser.check(TokenType::RightParen)) {
 		do {
-			expression();
+			expression(compiler);
 			if (argCount == 255) {
 				parser.error("Can't have more than 255 arguments.");
 			}
@@ -461,7 +461,7 @@ static void andOperator(Compiler* compiler, bool canAssign)
 
 	// Remove left-hand side from the stack.
 	clox::current->emitByte(OP_POP);
-	parsePrecedence(PREC_AND);
+	parsePrecedence(compiler, PREC_AND);
 
 	// Evaluating the right-hand will leave the appropriate value on the top of
 	// the stack.
@@ -491,7 +491,7 @@ static void orOperator(Compiler* compiler, bool canAssign)
 	// rhs evaluation
 	clox::current->patchJump(elseJump);
 	clox::current->emitByte(OP_POP); // pop lhs off the stack
-	parsePrecedence(PREC_OR);
+	parsePrecedence(compiler, PREC_OR);
 
 	clox::current->patchJump(endJump);
 
@@ -508,7 +508,7 @@ static void binary(Compiler* compiler, [[maybe_unused]] bool canAssign)
 	// Parse the next level up, since all our binary rules are left associative.
 	// This would be different if right-associative operators were handled, and
 	// we would use the same level of precedence again here.
-	parsePrecedence(Precedence(rule->precedence + 1));
+	parsePrecedence(compiler, Precedence(rule->precedence + 1));
 	switch (operatorType) {
 		case TokenType::Plus:
 			clox::current->emitByte(OP_ADD);
@@ -547,13 +547,13 @@ static void binary(Compiler* compiler, [[maybe_unused]] bool canAssign)
 
 static void call(Compiler* compiler, bool canAssign)
 {
-	const uint8_t argCount = argumentList();
-	clox::current->emitBytes(OP_CALL, argCount);
+	const uint8_t argCount = argumentList(compiler);
+	compiler->emitBytes(OP_CALL, argCount);
 }
 
-static void expression()
+static void expression(Compiler* compiler)
 {
-	parsePrecedence(PREC_ASSIGNMENT);
+	parsePrecedence(compiler, PREC_ASSIGNMENT);
 }
 
 static void block()
@@ -630,7 +630,7 @@ static void varDeclaration()
 {
 	const uint8_t global = clox::current->parseVariable("Expected a variable name.");
 	if (parser.match(TokenType::Equal)) {
-		expression();
+		expression(clox::current);
 	} else {
 		clox::current->emitByte(OP_NIL);
 	}
@@ -641,14 +641,14 @@ static void varDeclaration()
 // Parse a print statement, assuming the previous token is "print".
 static void printStatement()
 {
-	expression();
+	expression(clox::current);
 	parser.consume(TokenType::Semicolon, "Expected a ';' after print statement.");
 	clox::current->emitByte(OP_PRINT);
 }
 
 static void expressionStatement()
 {
-	expression();
+	expression(clox::current);
 	parser.consume(TokenType::Semicolon, "Expected a ';' after expression.");
 	clox::current->emitByte(OP_POP);
 }
@@ -696,7 +696,7 @@ static void forStatement()
 	int loopStart = clox::current->chunk()->code.count();
 	int exitJump = -1;
 	if (!parser.match(TokenType::Semicolon)) {
-		expression();
+		expression(clox::current);
 		parser.consume(TokenType::Semicolon, "Expected ';' after condition.");
 		exitJump = clox::current->emitJump(OP_JUMP_IF_FALSE);
 		clox::current->emitByte(OP_POP);
@@ -707,7 +707,7 @@ static void forStatement()
 		// Skip increment on initial loop pass.
 		const int bodyJump = clox::current->emitJump(OP_JUMP);
 		const int increment = clox::current->chunk()->code.count();
-		expression();
+		expression(clox::current);
 		clox::current->emitByte(OP_POP);
 		parser.consume(TokenType::RightParen, "Expected ')' after `for` clauses.");
 
@@ -750,7 +750,7 @@ static void ifStatement()
 {
 	// Starts immediately after `if`.
 	parser.consume(TokenType::LeftParen, "Expected a '(' after `if`.");
-	expression();
+	expression(clox::current);
 	parser.consume(TokenType::RightParen, "Expected a ')' after `if` condition.");
 
 	const int thenJump = clox::current->emitJump(OP_JUMP_IF_FALSE);
@@ -776,7 +776,7 @@ static void returnStatement(Compiler* compiler)
 	if (parser.match(TokenType::Semicolon)) {
 		clox::current->emitReturn();
 	} else {
-		expression();
+		expression(clox::current);
 		parser.consume(TokenType::Semicolon, "Expected ';' after return expression.");
 		clox::current->emitByte(OP_RETURN);
 	}
@@ -797,7 +797,7 @@ static void whileStatement(Compiler* compiler)
 	const int loopStart = clox::current->chunk()->code.count();
 
 	parser.consume(TokenType::LeftParen, "Expected '(' after while.");
-	expression();
+	expression(clox::current);
 	parser.consume(TokenType::RightParen, "Expected ')' after while condition.");
 
 	const int exitJump = clox::current->emitJump(OP_JUMP_IF_FALSE);
@@ -851,7 +851,7 @@ static void statement()
 // encountered.
 static void grouping(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
-	expression();
+	expression(clox::current);
 	parser.consume(TokenType::RightParen, "Expected ')' after expression.");
 }
 
@@ -860,7 +860,7 @@ static void unary(Compiler* compiler, [[maybe_unused]] bool canAssign)
 	const TokenType operatorType = parser.previous.type;
 
 	// Compile the expression the unary applies to.
-	parsePrecedence(PREC_UNARY);
+	parsePrecedence(compiler, PREC_UNARY);
 
 	// current->emit the operation AFTER the expression, since the expression should be
 	// below this operand to have it applied to that expression's result.
@@ -918,7 +918,7 @@ static void namedVariable(Token name, bool canAssign)
 	CL_ASSERT(arg >= 0 && arg <= std::numeric_limits<uint8_t>::max());
 
 	if (canAssign && parser.match(TokenType::Equal)) {
-		expression();
+		expression(clox::current);
 		clox::current->emitBytes(setOp, static_cast<uint8_t>(arg));
 	} else {
 		clox::current->emitBytes(getOp, static_cast<uint8_t>(arg));
