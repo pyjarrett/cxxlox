@@ -11,6 +11,7 @@ set(CXXLOX_SRCS
     pratt.cpp
     scanner.cpp
     table.cpp
+    token.cpp
     value.cpp
     vm.cpp
 )
@@ -31,6 +32,7 @@ set(CXXLOX_HEADERS
     pratt.hpp
     scanner.hpp
     table.hpp
+    token.hpp
     value.hpp
     vm.hpp
 )
