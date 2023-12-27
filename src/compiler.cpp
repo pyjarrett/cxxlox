@@ -90,6 +90,19 @@ struct Compiler {
 
 	[[nodiscard]] Chunk* chunk() { return &function->chunk; }
 
+	[[nodiscard]] uint8_t makeConstant(Value value);
+
+	////////////////////////////////////////////////////////////////////////////
+	// Bytecode emission
+	////////////////////////////////////////////////////////////////////////////
+	void emitByte(uint8_t byte);
+	void emitBytes(uint8_t byte1, uint8_t byte2);
+	void emitLoop(int loopStart);
+	[[nodiscard]] int emitJump(uint8_t byte);
+	void emitConstant(Value value);
+	void emitReturn();
+	void patchJump(int offset);
+
 	// The parent function in which this compilation instance is occurring.
 	Compiler* enclosing = nullptr;
 
@@ -119,28 +132,36 @@ static const ParseRule* getRule(TokenType type);
 ///////////////////////////////////////////////////////////////////////////////
 // State management
 ///////////////////////////////////////////////////////////////////////////////
+uint8_t Compiler::makeConstant(Value value)
+{
+	const int constant = chunk()->addConstant(value);
+	if (constant > std::numeric_limits<uint8_t>::max()) {
+		parser.error("Too many constants in one chunk.");
+	}
+	return static_cast<uint8_t>(constant);
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Bytecode emission
 ///////////////////////////////////////////////////////////////////////////////
-static void emitByte(uint8_t byte)
+void Compiler::emitByte(uint8_t byte)
 {
-	current->chunk()->write(byte, parser.previous.line);
+	chunk()->write(byte, parser.previous.line);
 }
 
-static void emitBytes(uint8_t byte1, uint8_t byte2)
+void Compiler::emitBytes(uint8_t byte1, uint8_t byte2)
 {
 	emitByte(byte1);
 	emitByte(byte2);
 }
 
 // A backwards jump back to the offset of a loop start.
-static void emitLoop(int loopStart)
+void Compiler::emitLoop(int loopStart)
 {
 	emitByte(OP_LOOP);
 
 	// 2 to skip over the two offset bytes of the OP_LOOP instruction
-	const int offset = current->chunk()->code.count() - loopStart + 2;
+	const int offset = chunk()->code.count() - loopStart + 2;
 	if (offset > std::numeric_limits<uint16_t>::max()) {
 		parser.error("Loop body is too large.");
 	}
@@ -152,7 +173,7 @@ static void emitLoop(int loopStart)
 // Emit a jump instruction and then return the offset of the address to jump to
 // so that it can be patched once that location is known.  "Jumps" are only
 // forwards.
-static int emitJump(uint8_t byte)
+int Compiler::emitJump(uint8_t byte)
 {
 	emitByte(byte);
 
@@ -160,38 +181,29 @@ static int emitJump(uint8_t byte)
 	emitByte(0xFF);
 	emitByte(0xFF);
 
-	return current->chunk()->code.count() - 2;
+	return chunk()->code.count() - 2;
 }
 
-[[nodiscard]] static uint8_t makeConstant(Value value)
-{
-	const int constant = current->chunk()->addConstant(value);
-	if (constant > std::numeric_limits<uint8_t>::max()) {
-		parser.error("Too many constants in one chunk.");
-	}
-	return static_cast<uint8_t>(constant);
-}
-
-static void emitConstant(Value value)
+void Compiler::emitConstant(Value value)
 {
 	emitBytes(OP_CONSTANT, makeConstant(value));
 }
 
 // Patch a jump from the given offset to the next instruction to be emitted.
-static void patchJump(int offset)
+void Compiler::patchJump(int offset)
 {
 	// The location being jumped from is the
-	const int target = current->chunk()->code.count() - offset - 2;
+	const int target = chunk()->code.count() - offset - 2;
 
 	CL_ASSERT(target > 0);
 
 	// TODO: This feels weird putting the larger byte in first on little-endian
 	// I'd expect these to be swapped.
-	current->chunk()->code[offset] = (target >> 8) & 0xFF;
-	current->chunk()->code[offset + 1] = target & 0xFF;
+	chunk()->code[offset] = (target >> 8) & 0xFF;
+	chunk()->code[offset + 1] = target & 0xFF;
 }
 
-static void emitReturn()
+void Compiler::emitReturn()
 {
 	// Implicitly return nil if no return value is provided.
 	emitByte(OP_NIL);
@@ -203,7 +215,7 @@ static void emitReturn()
 ///////////////////////////////////////////////////////////////////////////////
 static ObjFunction* endCompiler()
 {
-	emitReturn();
+	current->emitReturn();
 	ObjFunction* function = current->function;
 #ifdef DEBUG_PRINT_CODE
 	if (!parser.hadError) {
@@ -244,7 +256,7 @@ static void parsePrecedence(Precedence precedence)
 
 [[nodiscard]] static uint8_t identifierConstant(Token* name)
 {
-	return makeConstant(Value::makeObj(copyString(name->start, name->length)->asObj()));
+	return current->makeConstant(Value::makeObj(copyString(name->start, name->length)->asObj()));
 }
 
 [[nodiscard]] static bool identifiersEqual(Token* a, Token* b)
@@ -438,7 +450,7 @@ static void defineVariable(uint8_t global)
 		markInitialized();
 		return;
 	}
-	emitBytes(OP_DEFINE_GLOBAL, global);
+	current->emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
 // Short-circuiting `and` operator.
@@ -448,15 +460,15 @@ static void andOperator(bool canAssign)
 
 	// The left hand side should on the top of the stack.
 	// Skip the right hand evaluation if it is false.
-	const int endJump = emitJump(OP_JUMP_IF_FALSE);
+	const int endJump = current->emitJump(OP_JUMP_IF_FALSE);
 
 	// Remove left-hand side from the stack.
-	emitByte(OP_POP);
+	current->emitByte(OP_POP);
 	parsePrecedence(PREC_AND);
 
 	// Evaluating the right-hand will leave the appropriate value on the top of
 	// the stack.
-	patchJump(endJump);
+	current->patchJump(endJump);
 }
 
 // Short-circuiting `or` operator
@@ -474,17 +486,17 @@ static void orOperator(bool canAssign)
 	CL_UNUSED(canAssign);
 
 	// The left side should be on the stack.
-	const int elseJump = emitJump(OP_JUMP_IF_FALSE);
+	const int elseJump = current->emitJump(OP_JUMP_IF_FALSE);
 
 	// lhs was true, so bypass right-hand evaluation.
-	const int endJump = emitJump(OP_JUMP);
+	const int endJump = current->emitJump(OP_JUMP);
 
 	// rhs evaluation
-	patchJump(elseJump);
-	emitByte(OP_POP); // pop lhs off the stack
+	current->patchJump(elseJump);
+	current->emitByte(OP_POP); // pop lhs off the stack
 	parsePrecedence(PREC_OR);
 
-	patchJump(endJump);
+	current->patchJump(endJump);
 
 	// Leave either lhs or rhs on stack
 }
@@ -502,34 +514,34 @@ static void binary([[maybe_unused]] bool canAssign)
 	parsePrecedence(Precedence(rule->precedence + 1));
 	switch (operatorType) {
 		case TokenType::Plus:
-			emitByte(OP_ADD);
+			current->emitByte(OP_ADD);
 			break;
 		case TokenType::Minus:
-			emitByte(OP_SUBTRACT);
+			current->emitByte(OP_SUBTRACT);
 			break;
 		case TokenType::Star:
-			emitByte(OP_MULTIPLY);
+			current->emitByte(OP_MULTIPLY);
 			break;
 		case TokenType::Slash:
-			emitByte(OP_DIVIDE);
+			current->emitByte(OP_DIVIDE);
 			break;
 		case TokenType::EqualEqual:
-			emitByte(OP_EQUAL);
+			current->emitByte(OP_EQUAL);
 			break;
 		case TokenType::BangEqual:
-			emitBytes(OP_EQUAL, OP_NOT);
+			current->emitBytes(OP_EQUAL, OP_NOT);
 			break;
 		case TokenType::Less:
-			emitByte(OP_LESS);
+			current->emitByte(OP_LESS);
 			break;
 		case TokenType::LessEqual:
-			emitBytes(OP_GREATER, OP_NOT);
+			current->emitBytes(OP_GREATER, OP_NOT);
 			break;
 		case TokenType::Greater:
-			emitByte(OP_GREATER);
+			current->emitByte(OP_GREATER);
 			break;
 		case TokenType::GreaterEqual:
-			emitBytes(OP_LESS, OP_NOT);
+			current->emitBytes(OP_LESS, OP_NOT);
 			break;
 		default:
 			CL_ASSERT(false); // Unknown operator type.
@@ -539,7 +551,7 @@ static void binary([[maybe_unused]] bool canAssign)
 static void call(bool canAssign)
 {
 	const uint8_t argCount = argumentList();
-	emitBytes(OP_CALL, argCount);
+	current->emitBytes(OP_CALL, argCount);
 }
 
 static void expression()
@@ -589,13 +601,13 @@ static void function(FunctionType type)
 	// Close up the function
 	ObjFunction* fn = endCompiler();
 
-	emitBytes(OP_CLOSURE, makeConstant(Value::makeFunction(fn)));
+	current->emitBytes(OP_CLOSURE, current->makeConstant(Value::makeFunction(fn)));
 
 	// OP_CLOSURE is a variable sized instruction which includes bytes following
 	// it describing upvalues, written as (local, index) pairs.
 	for (int32_t i = 0; i < fn->upvalueCount; ++i) {
-		emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
-		emitByte(compiler.upvalues[i].index);
+		current->emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+		current->emitByte(compiler.upvalues[i].index);
 	}
 
 	// No `endScope()` here because there's no need to close the outermost scope.
@@ -619,7 +631,7 @@ static void varDeclaration()
 	if (parser.match(TokenType::Equal)) {
 		expression();
 	} else {
-		emitByte(OP_NIL);
+		current->emitByte(OP_NIL);
 	}
 	parser.consume(TokenType::Semicolon, "Expected a ';' after a variable declaration.");
 	defineVariable(global);
@@ -630,14 +642,14 @@ static void printStatement()
 {
 	expression();
 	parser.consume(TokenType::Semicolon, "Expected a ';' after print statement.");
-	emitByte(OP_PRINT);
+	current->emitByte(OP_PRINT);
 }
 
 static void expressionStatement()
 {
 	expression();
 	parser.consume(TokenType::Semicolon, "Expected a ';' after expression.");
-	emitByte(OP_POP);
+	current->emitByte(OP_POP);
 }
 
 // Outputs the increment step before the loop body due to limitations of being
@@ -685,35 +697,35 @@ static void forStatement()
 	if (!parser.match(TokenType::Semicolon)) {
 		expression();
 		parser.consume(TokenType::Semicolon, "Expected ';' after condition.");
-		exitJump = emitJump(OP_JUMP_IF_FALSE);
-		emitByte(OP_POP);
+		exitJump = current->emitJump(OP_JUMP_IF_FALSE);
+		current->emitByte(OP_POP);
 	}
 
 	// Increment
 	if (!parser.match(TokenType::RightParen)) {
 		// Skip increment on initial loop pass.
-		const int bodyJump = emitJump(OP_JUMP);
+		const int bodyJump = current->emitJump(OP_JUMP);
 		const int increment = current->chunk()->code.count();
 		expression();
-		emitByte(OP_POP);
+		current->emitByte(OP_POP);
 		parser.consume(TokenType::RightParen, "Expected ')' after `for` clauses.");
 
 		// Start the next loop.
-		emitLoop(loopStart);
+		current->emitLoop(loopStart);
 
 		// The body should jump to the increment only if there is one.
 		loopStart = increment;
-		patchJump(bodyJump);
+		current->patchJump(bodyJump);
 	}
 
 	statement();
-	emitLoop(loopStart);
+	current->emitLoop(loopStart);
 
 	if (exitJump != -1) {
-		patchJump(exitJump);
+		current->patchJump(exitJump);
 
 		// Pop the condition.
-		emitByte(OP_POP);
+		current->emitByte(OP_POP);
 	}
 	current->endScope();
 }
@@ -740,18 +752,18 @@ static void ifStatement()
 	expression();
 	parser.consume(TokenType::RightParen, "Expected a ')' after `if` condition.");
 
-	const int thenJump = emitJump(OP_JUMP_IF_FALSE);
-	emitByte(OP_POP);
+	const int thenJump = current->emitJump(OP_JUMP_IF_FALSE);
+	current->emitByte(OP_POP);
 	statement();
 
-	const int elseJump = emitJump(OP_JUMP);
-	patchJump(thenJump);
-	emitByte(OP_POP);
+	const int elseJump = current->emitJump(OP_JUMP);
+	current->patchJump(thenJump);
+	current->emitByte(OP_POP);
 
 	if (parser.match(TokenType::Else)) {
 		statement();
 	}
-	patchJump(elseJump);
+	current->patchJump(elseJump);
 }
 
 static void returnStatement(Compiler* compiler)
@@ -761,11 +773,11 @@ static void returnStatement(Compiler* compiler)
 	}
 
 	if (parser.match(TokenType::Semicolon)) {
-		emitReturn();
+		current->emitReturn();
 	} else {
 		expression();
 		parser.consume(TokenType::Semicolon, "Expected ';' after return expression.");
-		emitByte(OP_RETURN);
+		current->emitByte(OP_RETURN);
 	}
 }
 
@@ -787,13 +799,13 @@ static void whileStatement(Compiler* compiler)
 	expression();
 	parser.consume(TokenType::RightParen, "Expected ')' after while condition.");
 
-	const int exitJump = emitJump(OP_JUMP_IF_FALSE);
-	emitByte(OP_POP);
+	const int exitJump = current->emitJump(OP_JUMP_IF_FALSE);
+	current->emitByte(OP_POP);
 	statement();
-	emitLoop(loopStart);
+	current->emitLoop(loopStart);
 
-	patchJump(exitJump);
-	emitByte(OP_POP);
+	current->patchJump(exitJump);
+	current->emitByte(OP_POP);
 }
 
 static void declaration()
@@ -849,14 +861,14 @@ static void unary([[maybe_unused]] bool canAssign)
 	// Compile the expression the unary applies to.
 	parsePrecedence(PREC_UNARY);
 
-	// Emit the operation AFTER the expression, since the expression should be
+	// current->emit the operation AFTER the expression, since the expression should be
 	// below this operand to have it applied to that expression's result.
 	switch (operatorType) {
 		case TokenType::Minus:
-			emitByte(OP_NEGATE);
+			current->emitByte(OP_NEGATE);
 			break;
 		case TokenType::Bang:
-			emitByte(OP_NOT);
+			current->emitByte(OP_NOT);
 			break;
 		default:
 			CL_FATAL("Unexpected unary operation token.");
@@ -872,14 +884,14 @@ static void number([[maybe_unused]] bool canAssign)
 		CL_ASSERT(false); // Invalid conversion.
 		value = 0.0;
 	}
-	emitConstant(Value::makeNumber(value));
+	current->emitConstant(Value::makeNumber(value));
 }
 
 static void string([[maybe_unused]] bool canAssign)
 {
 	const std::string_view previous = parser.previous.view();
 	const std::string_view withoutQuotes = previous.substr(1, previous.length() - 2);
-	emitConstant(Value::makeString(copyString(withoutQuotes.data(), withoutQuotes.length())));
+	current->emitConstant(Value::makeString(copyString(withoutQuotes.data(), withoutQuotes.length())));
 }
 
 // Emit the variable and appropriate op code to get or set a variable,
@@ -906,9 +918,9 @@ static void namedVariable(Token name, bool canAssign)
 
 	if (canAssign && parser.match(TokenType::Equal)) {
 		expression();
-		emitBytes(setOp, static_cast<uint8_t>(arg));
+		current->emitBytes(setOp, static_cast<uint8_t>(arg));
 	} else {
-		emitBytes(getOp, static_cast<uint8_t>(arg));
+		current->emitBytes(getOp, static_cast<uint8_t>(arg));
 	}
 }
 
@@ -921,13 +933,13 @@ static void literal([[maybe_unused]] bool canAssign)
 {
 	switch (parser.previous.type) {
 		case TokenType::Nil:
-			emitByte(OP_NIL);
+			current->emitByte(OP_NIL);
 			break;
 		case TokenType::True:
-			emitByte(OP_TRUE);
+			current->emitByte(OP_TRUE);
 			break;
 		case TokenType::False:
-			emitByte(OP_FALSE);
+			current->emitByte(OP_FALSE);
 			break;
 		default:
 			CL_FATAL("Unexpected literal type.");
