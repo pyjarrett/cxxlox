@@ -55,7 +55,10 @@ struct Compiler;
 // Global compilation state.  Not preferred, but how the book
 // handles it.
 static Parser parser;
+
+namespace clox {
 static Compiler* current = nullptr;
+}
 
 // Tracks compilation of the top level and each Lox function.
 struct Compiler {
@@ -64,8 +67,8 @@ struct Compiler {
 	explicit Compiler(FunctionType type) : type(type)
 	{
 		// Track the enclosing function compiler and mark this one as current.
-		enclosing = current;
-		current = this;
+		enclosing = clox::current;
+		clox::current = this;
 
 		function = allocateObj<ObjFunction>();
 		if (type != FunctionType::Script) {
@@ -225,15 +228,15 @@ void Compiler::emitReturn()
 ///////////////////////////////////////////////////////////////////////////////
 static ObjFunction* endCompiler()
 {
-	current->emitReturn();
-	ObjFunction* function = current->function;
+	clox::current->emitReturn();
+	ObjFunction* function = clox::current->function;
 #ifdef DEBUG_PRINT_CODE
 	if (!parser.hadError) {
-		disassembleChunk(*current->chunk(), function->name != nullptr ? function->name->chars : "<script>");
+		disassembleChunk(*clox::current->chunk(), function->name != nullptr ? function->name->chars : "<script>");
 	}
 #endif
 
-	current = current->enclosing;
+	clox::current = clox::current->enclosing;
 	return function;
 }
 
@@ -357,25 +360,25 @@ void Compiler::endScope()
 	// Remove variables from the current scope from the top of the stack.
 	// Variables which are captured as upvalues must be saved, but all others
 	// can just be popped.
-	while (current->localCount > 0 && current->locals[current->localCount - 1].depth > current->scopeDepth) {
-		if (current->locals[current->localCount - 1].captured) {
+	while (clox::current->localCount > 0 && clox::current->locals[clox::current->localCount - 1].depth > clox::current->scopeDepth) {
+		if (clox::current->locals[clox::current->localCount - 1].captured) {
 			emitByte(OP_CLOSE_UPVALUE);
 		} else {
 			emitByte(OP_POP);
 		}
-		--current->localCount;
+		--clox::current->localCount;
 	}
 }
 
 void Compiler::addLocal(Token name)
 {
 	// The VM only supports a limited number of locals.
-	if (current->localCount == kUInt8Count) {
+	if (clox::current->localCount == kUInt8Count) {
 		parser.error("Too many local variables in function.");
 		return;
 	}
 
-	Local* local = &current->locals[current->localCount++];
+	Local* local = &clox::current->locals[clox::current->localCount++];
 	local->name = name;
 	local->depth = Local::kUninitialized;
 }
@@ -441,21 +444,21 @@ uint8_t Compiler::parseVariable(const char* errorMessage)
 static void markInitialized()
 {
 	// Global functions aren't in a scope to be marked as initialized.
-	if (current->scopeDepth == 0) {
+	if (clox::current->scopeDepth == 0) {
 		return;
 	}
 
-	current->locals[current->localCount - 1].depth = current->scopeDepth;
+	clox::current->locals[clox::current->localCount - 1].depth = clox::current->scopeDepth;
 }
 
 static void defineVariable(uint8_t global)
 {
 	// The variable is local.
-	if (current->scopeDepth > 0) {
+	if (clox::current->scopeDepth > 0) {
 		markInitialized();
 		return;
 	}
-	current->emitBytes(OP_DEFINE_GLOBAL, global);
+	clox::current->emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
 // Short-circuiting `and` operator.
@@ -465,15 +468,15 @@ static void andOperator(bool canAssign)
 
 	// The left hand side should on the top of the stack.
 	// Skip the right hand evaluation if it is false.
-	const int endJump = current->emitJump(OP_JUMP_IF_FALSE);
+	const int endJump = clox::current->emitJump(OP_JUMP_IF_FALSE);
 
 	// Remove left-hand side from the stack.
-	current->emitByte(OP_POP);
+	clox::current->emitByte(OP_POP);
 	parsePrecedence(PREC_AND);
 
 	// Evaluating the right-hand will leave the appropriate value on the top of
 	// the stack.
-	current->patchJump(endJump);
+	clox::current->patchJump(endJump);
 }
 
 // Short-circuiting `or` operator
@@ -491,17 +494,17 @@ static void orOperator(bool canAssign)
 	CL_UNUSED(canAssign);
 
 	// The left side should be on the stack.
-	const int elseJump = current->emitJump(OP_JUMP_IF_FALSE);
+	const int elseJump = clox::current->emitJump(OP_JUMP_IF_FALSE);
 
 	// lhs was true, so bypass right-hand evaluation.
-	const int endJump = current->emitJump(OP_JUMP);
+	const int endJump = clox::current->emitJump(OP_JUMP);
 
 	// rhs evaluation
-	current->patchJump(elseJump);
-	current->emitByte(OP_POP); // pop lhs off the stack
+	clox::current->patchJump(elseJump);
+	clox::current->emitByte(OP_POP); // pop lhs off the stack
 	parsePrecedence(PREC_OR);
 
-	current->patchJump(endJump);
+	clox::current->patchJump(endJump);
 
 	// Leave either lhs or rhs on stack
 }
@@ -519,34 +522,34 @@ static void binary([[maybe_unused]] bool canAssign)
 	parsePrecedence(Precedence(rule->precedence + 1));
 	switch (operatorType) {
 		case TokenType::Plus:
-			current->emitByte(OP_ADD);
+			clox::current->emitByte(OP_ADD);
 			break;
 		case TokenType::Minus:
-			current->emitByte(OP_SUBTRACT);
+			clox::current->emitByte(OP_SUBTRACT);
 			break;
 		case TokenType::Star:
-			current->emitByte(OP_MULTIPLY);
+			clox::current->emitByte(OP_MULTIPLY);
 			break;
 		case TokenType::Slash:
-			current->emitByte(OP_DIVIDE);
+			clox::current->emitByte(OP_DIVIDE);
 			break;
 		case TokenType::EqualEqual:
-			current->emitByte(OP_EQUAL);
+			clox::current->emitByte(OP_EQUAL);
 			break;
 		case TokenType::BangEqual:
-			current->emitBytes(OP_EQUAL, OP_NOT);
+			clox::current->emitBytes(OP_EQUAL, OP_NOT);
 			break;
 		case TokenType::Less:
-			current->emitByte(OP_LESS);
+			clox::current->emitByte(OP_LESS);
 			break;
 		case TokenType::LessEqual:
-			current->emitBytes(OP_GREATER, OP_NOT);
+			clox::current->emitBytes(OP_GREATER, OP_NOT);
 			break;
 		case TokenType::Greater:
-			current->emitByte(OP_GREATER);
+			clox::current->emitByte(OP_GREATER);
 			break;
 		case TokenType::GreaterEqual:
-			current->emitBytes(OP_LESS, OP_NOT);
+			clox::current->emitBytes(OP_LESS, OP_NOT);
 			break;
 		default:
 			CL_ASSERT(false); // Unknown operator type.
@@ -556,7 +559,7 @@ static void binary([[maybe_unused]] bool canAssign)
 static void call(bool canAssign)
 {
 	const uint8_t argCount = argumentList();
-	current->emitBytes(OP_CALL, argCount);
+	clox::current->emitBytes(OP_CALL, argCount);
 }
 
 static void expression()
@@ -580,20 +583,20 @@ static void function(FunctionType type)
 
 	// Each function gets compiled by a separate compiler.
 	Compiler compiler(type);
-	current = &compiler;
+	clox::current = &compiler;
 
-	current->beginScope();
+	clox::current->beginScope();
 
 	// Parameter parsing
 	parser.consume(TokenType::LeftParen, "Expected `(` after function name.");
 	if (!parser.check(TokenType::RightParen)) {
 		do {
-			++current->function->arity;
-			if (current->function->arity > kMaxFunctionArity) {
+			++clox::current->function->arity;
+			if (clox::current->function->arity > kMaxFunctionArity) {
 				parser.errorAtCurrent("Can't have more than 255 parameters.");
 			}
 
-			const uint8_t constant = current->parseVariable("Expected parameter name.");
+			const uint8_t constant = clox::current->parseVariable("Expected parameter name.");
 			defineVariable(constant);
 		} while (parser.match(TokenType::Comma));
 	}
@@ -606,13 +609,13 @@ static void function(FunctionType type)
 	// Close up the function
 	ObjFunction* fn = endCompiler();
 
-	current->emitBytes(OP_CLOSURE, current->makeConstant(Value::makeFunction(fn)));
+	clox::current->emitBytes(OP_CLOSURE, clox::current->makeConstant(Value::makeFunction(fn)));
 
 	// OP_CLOSURE is a variable sized instruction which includes bytes following
 	// it describing upvalues, written as (local, index) pairs.
 	for (int32_t i = 0; i < fn->upvalueCount; ++i) {
-		current->emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
-		current->emitByte(compiler.upvalues[i].index);
+		clox::current->emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+		clox::current->emitByte(compiler.upvalues[i].index);
 	}
 
 	// No `endScope()` here because there's no need to close the outermost scope.
@@ -622,7 +625,7 @@ static void function(FunctionType type)
 
 static void functionDeclaration()
 {
-	const uint8_t global = current->parseVariable("Expected a function name.");
+	const uint8_t global = clox::current->parseVariable("Expected a function name.");
 	markInitialized();
 
 	// This isn't part of a top level script.
@@ -632,11 +635,11 @@ static void functionDeclaration()
 
 static void varDeclaration()
 {
-	const uint8_t global = current->parseVariable("Expected a variable name.");
+	const uint8_t global = clox::current->parseVariable("Expected a variable name.");
 	if (parser.match(TokenType::Equal)) {
 		expression();
 	} else {
-		current->emitByte(OP_NIL);
+		clox::current->emitByte(OP_NIL);
 	}
 	parser.consume(TokenType::Semicolon, "Expected a ';' after a variable declaration.");
 	defineVariable(global);
@@ -647,14 +650,14 @@ static void printStatement()
 {
 	expression();
 	parser.consume(TokenType::Semicolon, "Expected a ';' after print statement.");
-	current->emitByte(OP_PRINT);
+	clox::current->emitByte(OP_PRINT);
 }
 
 static void expressionStatement()
 {
 	expression();
 	parser.consume(TokenType::Semicolon, "Expected a ';' after expression.");
-	current->emitByte(OP_POP);
+	clox::current->emitByte(OP_POP);
 }
 
 // Outputs the increment step before the loop body due to limitations of being
@@ -684,7 +687,7 @@ static void expressionStatement()
 //
 static void forStatement()
 {
-	current->beginScope();
+	clox::current->beginScope();
 	parser.consume(TokenType::LeftParen, "Expected '(' after `for`.");
 
 	// Variable declaration and/or initializer
@@ -697,42 +700,42 @@ static void forStatement()
 	}
 
 	// Condition
-	int loopStart = current->chunk()->code.count();
+	int loopStart = clox::current->chunk()->code.count();
 	int exitJump = -1;
 	if (!parser.match(TokenType::Semicolon)) {
 		expression();
 		parser.consume(TokenType::Semicolon, "Expected ';' after condition.");
-		exitJump = current->emitJump(OP_JUMP_IF_FALSE);
-		current->emitByte(OP_POP);
+		exitJump = clox::current->emitJump(OP_JUMP_IF_FALSE);
+		clox::current->emitByte(OP_POP);
 	}
 
 	// Increment
 	if (!parser.match(TokenType::RightParen)) {
 		// Skip increment on initial loop pass.
-		const int bodyJump = current->emitJump(OP_JUMP);
-		const int increment = current->chunk()->code.count();
+		const int bodyJump = clox::current->emitJump(OP_JUMP);
+		const int increment = clox::current->chunk()->code.count();
 		expression();
-		current->emitByte(OP_POP);
+		clox::current->emitByte(OP_POP);
 		parser.consume(TokenType::RightParen, "Expected ')' after `for` clauses.");
 
 		// Start the next loop.
-		current->emitLoop(loopStart);
+		clox::current->emitLoop(loopStart);
 
 		// The body should jump to the increment only if there is one.
 		loopStart = increment;
-		current->patchJump(bodyJump);
+		clox::current->patchJump(bodyJump);
 	}
 
 	statement();
-	current->emitLoop(loopStart);
+	clox::current->emitLoop(loopStart);
 
 	if (exitJump != -1) {
-		current->patchJump(exitJump);
+		clox::current->patchJump(exitJump);
 
 		// Pop the condition.
-		current->emitByte(OP_POP);
+		clox::current->emitByte(OP_POP);
 	}
-	current->endScope();
+	clox::current->endScope();
 }
 
 // `if` <*> `(` condition `)`
@@ -757,18 +760,18 @@ static void ifStatement()
 	expression();
 	parser.consume(TokenType::RightParen, "Expected a ')' after `if` condition.");
 
-	const int thenJump = current->emitJump(OP_JUMP_IF_FALSE);
-	current->emitByte(OP_POP);
+	const int thenJump = clox::current->emitJump(OP_JUMP_IF_FALSE);
+	clox::current->emitByte(OP_POP);
 	statement();
 
-	const int elseJump = current->emitJump(OP_JUMP);
-	current->patchJump(thenJump);
-	current->emitByte(OP_POP);
+	const int elseJump = clox::current->emitJump(OP_JUMP);
+	clox::current->patchJump(thenJump);
+	clox::current->emitByte(OP_POP);
 
 	if (parser.match(TokenType::Else)) {
 		statement();
 	}
-	current->patchJump(elseJump);
+	clox::current->patchJump(elseJump);
 }
 
 static void returnStatement(Compiler* compiler)
@@ -778,11 +781,11 @@ static void returnStatement(Compiler* compiler)
 	}
 
 	if (parser.match(TokenType::Semicolon)) {
-		current->emitReturn();
+		clox::current->emitReturn();
 	} else {
 		expression();
 		parser.consume(TokenType::Semicolon, "Expected ';' after return expression.");
-		current->emitByte(OP_RETURN);
+		clox::current->emitByte(OP_RETURN);
 	}
 }
 
@@ -798,19 +801,19 @@ static void returnStatement(Compiler* compiler)
 //
 static void whileStatement(Compiler* compiler)
 {
-	const int loopStart = current->chunk()->code.count();
+	const int loopStart = clox::current->chunk()->code.count();
 
 	parser.consume(TokenType::LeftParen, "Expected '(' after while.");
 	expression();
 	parser.consume(TokenType::RightParen, "Expected ')' after while condition.");
 
-	const int exitJump = current->emitJump(OP_JUMP_IF_FALSE);
-	current->emitByte(OP_POP);
+	const int exitJump = clox::current->emitJump(OP_JUMP_IF_FALSE);
+	clox::current->emitByte(OP_POP);
 	statement();
-	current->emitLoop(loopStart);
+	clox::current->emitLoop(loopStart);
 
-	current->patchJump(exitJump);
-	current->emitByte(OP_POP);
+	clox::current->patchJump(exitJump);
+	clox::current->emitByte(OP_POP);
 }
 
 static void declaration()
@@ -839,13 +842,13 @@ static void statement()
 	} else if (parser.match(TokenType::If)) {
 		ifStatement();
 	} else if (parser.match(TokenType::Return)) {
-		returnStatement(current);
+		returnStatement(clox::current);
 	} else if (parser.match(TokenType::While)) {
-		whileStatement(current);
+		whileStatement(clox::current);
 	} else if (parser.match(TokenType::LeftBrace)) {
-		current->beginScope();
+		clox::current->beginScope();
 		block();
-		current->endScope();
+		clox::current->endScope();
 	} else {
 		expressionStatement();
 	}
@@ -870,10 +873,10 @@ static void unary([[maybe_unused]] bool canAssign)
 	// below this operand to have it applied to that expression's result.
 	switch (operatorType) {
 		case TokenType::Minus:
-			current->emitByte(OP_NEGATE);
+			clox::current->emitByte(OP_NEGATE);
 			break;
 		case TokenType::Bang:
-			current->emitByte(OP_NOT);
+			clox::current->emitByte(OP_NOT);
 			break;
 		default:
 			CL_FATAL("Unexpected unary operation token.");
@@ -889,14 +892,14 @@ static void number([[maybe_unused]] bool canAssign)
 		CL_ASSERT(false); // Invalid conversion.
 		value = 0.0;
 	}
-	current->emitConstant(Value::makeNumber(value));
+	clox::current->emitConstant(Value::makeNumber(value));
 }
 
 static void string([[maybe_unused]] bool canAssign)
 {
 	const std::string_view previous = parser.previous.view();
 	const std::string_view withoutQuotes = previous.substr(1, previous.length() - 2);
-	current->emitConstant(Value::makeString(copyString(withoutQuotes.data(), withoutQuotes.length())));
+	clox::current->emitConstant(Value::makeString(copyString(withoutQuotes.data(), withoutQuotes.length())));
 }
 
 // Emit the variable and appropriate op code to get or set a variable,
@@ -905,16 +908,16 @@ static void namedVariable(Token name, bool canAssign)
 {
 	// Decide if this is an operation on a global or a local.
 	uint8_t getOp, setOp;
-	int arg = current->resolveLocal(&name);
+	int arg = clox::current->resolveLocal(&name);
 	if (arg != -1) {
 		getOp = OP_GET_LOCAL;
 		setOp = OP_SET_LOCAL;
-	} else if ((arg = current->resolveUpvalue(&name)) != -1) {
+	} else if ((arg = clox::current->resolveUpvalue(&name)) != -1) {
 		getOp = OP_GET_UPVALUE;
 		setOp = OP_SET_UPVALUE;
 	} else {
 		// Global
-		arg = current->identifierConstant(&name);
+		arg = clox::current->identifierConstant(&name);
 		getOp = OP_GET_GLOBAL;
 		setOp = OP_SET_GLOBAL;
 	}
@@ -923,9 +926,9 @@ static void namedVariable(Token name, bool canAssign)
 
 	if (canAssign && parser.match(TokenType::Equal)) {
 		expression();
-		current->emitBytes(setOp, static_cast<uint8_t>(arg));
+		clox::current->emitBytes(setOp, static_cast<uint8_t>(arg));
 	} else {
-		current->emitBytes(getOp, static_cast<uint8_t>(arg));
+		clox::current->emitBytes(getOp, static_cast<uint8_t>(arg));
 	}
 }
 
@@ -938,13 +941,13 @@ static void literal([[maybe_unused]] bool canAssign)
 {
 	switch (parser.previous.type) {
 		case TokenType::Nil:
-			current->emitByte(OP_NIL);
+			clox::current->emitByte(OP_NIL);
 			break;
 		case TokenType::True:
-			current->emitByte(OP_TRUE);
+			clox::current->emitByte(OP_TRUE);
 			break;
 		case TokenType::False:
-			current->emitByte(OP_FALSE);
+			clox::current->emitByte(OP_FALSE);
 			break;
 		default:
 			CL_FATAL("Unexpected literal type.");
@@ -1018,7 +1021,7 @@ ObjFunction* compile(const std::string& source)
 
 	// FIXME: This is a horribly bad idea.
 	static Compiler compiler(FunctionType::Script);
-	current = &compiler;
+	clox::current = &compiler;
 
 	// Reset the parser.
 	parser = {};
