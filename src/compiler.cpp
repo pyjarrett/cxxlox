@@ -499,7 +499,49 @@ void Compiler::namedVariable(Token name, bool canAssign)
 	}
 }
 
-// Compile a function.
+////////////////////////////////////////////////////////////////////////////////
+// Syntactical functions
+////////////////////////////////////////////////////////////////////////////////
+void Compiler::declaration()
+{
+	if (parser.match(TokenType::Fun)) {
+		functionDeclaration();
+	} else if (parser.match(TokenType::Var)) {
+		varDeclaration();
+	} else {
+		statement();
+	}
+
+	// The parser could be in an error state, if so, then synchronize to a reasonable
+	// "known good" point.
+	if (parser.panicMode) {
+		parser.synchronize();
+	}
+}
+
+void Compiler::functionDeclaration()
+{
+	const uint8_t global = parseVariable("Expected a function name.");
+	markInitialized();
+
+	// This isn't part of a top level script.
+	defineFunction(FunctionType::Function);
+	defineVariable(global);
+}
+
+void Compiler::varDeclaration()
+{
+	const uint8_t global = parseVariable("Expected a variable name.");
+	if (parser.match(TokenType::Equal)) {
+		expression();
+	} else {
+		emitByte(OP_NIL);
+	}
+	parser.consume(TokenType::Semicolon, "Expected a ';' after a variable declaration.");
+	defineVariable(global);
+}
+
+// Deviation: was function()
 void Compiler::defineFunction(FunctionType type)
 {
 	// Maximum number of function parameters.
@@ -544,48 +586,6 @@ void Compiler::defineFunction(FunctionType type)
 	// No `endScope()` here because there's no need to close the outermost scope.
 	// The call frame is going to get popped if it's an inner function, and the
 	// program is terminating if it's the outermost script level.
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Syntactical functions
-////////////////////////////////////////////////////////////////////////////////
-void Compiler::declaration()
-{
-	if (parser.match(TokenType::Fun)) {
-		functionDeclaration();
-	} else if (parser.match(TokenType::Var)) {
-		varDeclaration();
-	} else {
-		statement();
-	}
-
-	// The parser could be in an error state, if so, then synchronize to a reasonable
-	// "known good" point.
-	if (parser.panicMode) {
-		parser.synchronize();
-	}
-}
-
-void Compiler::functionDeclaration()
-{
-	const uint8_t global = parseVariable("Expected a function name.");
-	markInitialized();
-
-	// This isn't part of a top level script.
-	defineFunction(FunctionType::Function);
-	defineVariable(global);
-}
-
-void Compiler::varDeclaration()
-{
-	const uint8_t global = parseVariable("Expected a variable name.");
-	if (parser.match(TokenType::Equal)) {
-		expression();
-	} else {
-		emitByte(OP_NIL);
-	}
-	parser.consume(TokenType::Semicolon, "Expected a ';' after a variable declaration.");
-	defineVariable(global);
 }
 
 void Compiler::statement()
