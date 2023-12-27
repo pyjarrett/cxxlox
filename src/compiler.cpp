@@ -97,6 +97,9 @@ struct Compiler {
 	void addLocal(Token name);
 	void declareVariable();
 
+	void markInitialized();
+	void defineVariable(uint8_t global);
+
 	[[nodiscard]] uint8_t parseVariable(const char* errorMessage);
 
 	////////////////////////////////////////////////////////////////////////////
@@ -436,24 +439,24 @@ uint8_t Compiler::parseVariable(const char* errorMessage)
 }
 
 // Marks the top variable as initialized.
-static void markInitialized()
+void Compiler::markInitialized()
 {
 	// Global functions aren't in a scope to be marked as initialized.
-	if (clox::current->scopeDepth == 0) {
+	if (scopeDepth == 0) {
 		return;
 	}
 
-	clox::current->locals[clox::current->localCount - 1].depth = clox::current->scopeDepth;
+	locals[localCount - 1].depth = scopeDepth;
 }
 
-static void defineVariable(uint8_t global)
+void Compiler::defineVariable(uint8_t global)
 {
 	// The variable is local.
-	if (clox::current->scopeDepth > 0) {
+	if (scopeDepth > 0) {
 		markInitialized();
 		return;
 	}
-	clox::current->emitBytes(OP_DEFINE_GLOBAL, global);
+	emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
 // Short-circuiting `and` operator.
@@ -592,7 +595,7 @@ static void function(FunctionType type)
 			}
 
 			const uint8_t constant = clox::current->parseVariable("Expected parameter name.");
-			defineVariable(constant);
+			clox::current->defineVariable(constant);
 		} while (parser.match(TokenType::Comma));
 	}
 	parser.consume(TokenType::RightParen, "Expected `)` after function parameters.");
@@ -625,11 +628,11 @@ static void function(FunctionType type)
 static void functionDeclaration()
 {
 	const uint8_t global = clox::current->parseVariable("Expected a function name.");
-	markInitialized();
+	clox::current->markInitialized();
 
 	// This isn't part of a top level script.
 	function(FunctionType::Function);
-	defineVariable(global);
+	clox::current->defineVariable(global);
 }
 
 static void varDeclaration()
@@ -641,7 +644,7 @@ static void varDeclaration()
 		clox::current->emitByte(OP_NIL);
 	}
 	parser.consume(TokenType::Semicolon, "Expected a ';' after a variable declaration.");
-	defineVariable(global);
+	clox::current->defineVariable(global);
 }
 
 // Parse a print statement, assuming the previous token is "print".
