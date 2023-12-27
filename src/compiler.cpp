@@ -79,6 +79,12 @@ struct Compiler {
 		local->name.length = 0;
 	}
 
+	// Looks in the current and enclosing scopes for a local with the given name,
+	// returning the index of a local with the given name, or return -1 if not found.
+	[[nodiscard]] int resolveLocal(Token* name);
+	[[nodiscard]] int32_t addUpvalue(uint8_t index, bool isLocal);
+	[[nodiscard]] int32_t resolveUpvalue(Token* name);
+
 	// The parent function in which this compilation instance is occurring.
 	Compiler* enclosing = nullptr;
 
@@ -273,11 +279,11 @@ static void parsePrecedence(Precedence precedence)
 
 // Looks in the current and enclosing scopes for a local with the given name,
 // returning the index of a local with the given name, or return -1 if not found.
-[[nodiscard]] static int resolveLocal(Compiler* compiler, Token* name)
+int Compiler::resolveLocal(Token* name)
 {
 	// Look at the current and upwards scopes for a variable of this name.
-	for (int i = compiler->localCount - 1; i >= 0; --i) {
-		Local* local = &compiler->locals[i];
+	for (int i = localCount - 1; i >= 0; --i) {
+		Local* local = &locals[i];
 		if (identifiersEqual(&local->name, name)) {
 			if (local->depth == Local::kUninitialized) {
 				parser.error("Cannot reference a local variable in its own initializer.");
@@ -290,16 +296,16 @@ static void parsePrecedence(Precedence precedence)
 }
 
 // Track an upvalue in the given compiler.
-[[nodiscard]] static int32_t addUpvalue(Compiler* compiler, uint8_t index, bool isLocal)
+int32_t Compiler::addUpvalue(uint8_t index, bool isLocal)
 {
 	// The compiler needs to track all the locals used as upvalues to extract
 	// them when the function returns or a block ends.
-	const int upvalueCount = compiler->function->upvalueCount;
+	const int upvalueCount = function->upvalueCount;
 
 	// Check to see that this upvalue hasn't already been captured by this closure.
 	for (int32_t i = 0; i < upvalueCount; ++i) {
-		if (compiler->upvalues[i].index == index && compiler->upvalues[i].isLocal == isLocal) {
-			return compiler->upvalues[i].index;
+		if (upvalues[i].index == index && upvalues[i].isLocal == isLocal) {
+			return upvalues[i].index;
 		}
 	}
 
@@ -309,35 +315,34 @@ static void parsePrecedence(Precedence precedence)
 		return 0;
 	}
 
-	compiler->upvalues[upvalueCount].index = index;
-	compiler->upvalues[upvalueCount].isLocal = isLocal;
-	return compiler->function->upvalueCount++;
+	upvalues[upvalueCount].index = index;
+	upvalues[upvalueCount].isLocal = isLocal;
+	return function->upvalueCount++;
 }
 
 // Looks for an upvalue in the enclosing function compiler scope.
-[[nodiscard]] static int32_t resolveUpvalue(Compiler* compiler, Token* name)
+int32_t Compiler::resolveUpvalue(Token* name)
 {
-	CL_ASSERT(compiler);
 	CL_ASSERT(name);
 
 	// There are no more compilers to check.
-	if (!compiler->enclosing) {
+	if (!enclosing) {
 		return -1;
 	}
 
 	// Look for a local matching the upvalue.
-	if (int local = resolveLocal(compiler->enclosing, name); local != -1) {
+	if (int local = enclosing->resolveLocal(name); local != -1) {
 		// This value now requires it to stay alive, since it's an upvalue.
-		compiler->enclosing->locals[local].captured = true;
+		enclosing->locals[local].captured = true;
 
 		// Found, so mark it as an upvalue.
-		return addUpvalue(compiler, static_cast<uint8_t>(local), true);
+		return addUpvalue(static_cast<uint8_t>(local), true);
 	}
 
 	// This upvalue might already be an existing upvalue higher up in the
 	// compiler chain.
-	if (int upvalue = resolveUpvalue(compiler->enclosing, name); upvalue != -1) {
-		return addUpvalue(compiler, static_cast<uint8_t>(upvalue), false);
+	if (int upvalue = enclosing->resolveUpvalue(name); upvalue != -1) {
+		return addUpvalue(static_cast<uint8_t>(upvalue), false);
 	}
 
 	// Not found
@@ -882,11 +887,11 @@ static void namedVariable(Token name, bool canAssign)
 {
 	// Decide if this is an operation on a global or a local.
 	uint8_t getOp, setOp;
-	int arg = resolveLocal(current, &name);
+	int arg = current->resolveLocal(&name);
 	if (arg != -1) {
 		getOp = OP_GET_LOCAL;
 		setOp = OP_SET_LOCAL;
-	} else if ((arg = resolveUpvalue(current, &name)) != -1) {
+	} else if ((arg = current->resolveUpvalue(&name)) != -1) {
 		getOp = OP_GET_UPVALUE;
 		setOp = OP_SET_UPVALUE;
 	} else {
