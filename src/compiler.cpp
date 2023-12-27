@@ -265,15 +265,6 @@ static void parsePrecedence(Precedence precedence)
 	}
 }
 
-[[nodiscard]] static bool identifiersEqual(Token* a, Token* b)
-{
-	if (a->length != b->length) {
-		return false;
-	}
-
-	return std::memcmp(a->start, b->start, a->length) == 0;
-}
-
 // Looks in the current and enclosing scopes for a local with the given name,
 // returning the index of a local with the given name, or return -1 if not found.
 int Compiler::resolveLocal(Token* name)

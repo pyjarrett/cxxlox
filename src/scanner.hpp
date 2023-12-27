@@ -92,6 +92,8 @@ struct Token {
 static_assert(sizeof(Token) == 24);
 static_assert(alignof(Token) == 8);
 
+[[nodiscard]] bool identifiersEqual(Token* a, Token* b);
+
 void initScanner(const char* source);
 [[nodiscard]] Token scanToken();
 
