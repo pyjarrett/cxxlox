@@ -514,6 +514,7 @@ InterpretResult VM::interpret(const std::string& source)
 	// to ask the VM to track the native function.
 	if (!loadedNativeFunctions) {
 		loadNativeFunctions();
+		loadedNativeFunctions = true;
 	}
 
 	ObjFunction* function = compile(source);
