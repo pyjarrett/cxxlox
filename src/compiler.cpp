@@ -3,6 +3,7 @@
 #include "chunk.hpp"
 #include "object.hpp"
 #include "object_allocator.hpp"
+#include "parser.hpp"
 #include "pratt.hpp"
 #include "scanner.hpp"
 
@@ -16,17 +17,6 @@
 #include <iostream>
 
 namespace cxxlox {
-
-struct Parser {
-	Token current;
-	Token previous;
-
-	bool hadError = false;
-
-	// Flag to set on parser error to allow it to resync without blasting out
-	// innumerable errors while finding a synchronization point.
-	bool panicMode = false;
-};
 
 // A local variable.
 struct Local {
@@ -116,52 +106,6 @@ static void expression();
 static const ParseRule* getRule(TokenType type);
 
 ///////////////////////////////////////////////////////////////////////////////
-// Error handling
-///////////////////////////////////////////////////////////////////////////////
-static void errorAt(const Token& token, const char* message)
-{
-	// Don't emit more errors if the parser is already in a panic state.
-	if (parser.panicMode) {
-		return;
-	}
-	parser.panicMode = true;
-	std::cerr << std::format("[line {}] Error", token.line);
-
-	if (token.type == TokenType::Eof) {
-		std::cerr << " at the end.\n";
-	} else if (token.type == TokenType::Error) {
-		// some sort of error token...
-	} else {
-		std::cerr << " at " << token.view();
-	}
-
-	std::cerr << ": " << message << '\n';
-
-	// Deviation from Lox to provide more in-depth error analysis.
-	constexpr auto kMaxContextLength = 80;
-	const char* cursor = token.start + token.length;
-	uint32_t contextLength = token.length;
-	for (int i = 0; i < kMaxContextLength && *cursor != '\0'; ++i) {
-		++cursor;
-		++contextLength;
-	}
-	std::cerr << "Context following error:\n"
-			  << "    " << std::string_view(token.start, contextLength) << '\n';
-
-	parser.hadError = true;
-}
-
-static void errorAtCurrent(const char* message)
-{
-	errorAt(parser.current, message);
-}
-
-static void error(const char* message)
-{
-	errorAt(parser.previous, message);
-}
-
-///////////////////////////////////////////////////////////////////////////////
 // Token operations
 ///////////////////////////////////////////////////////////////////////////////
 static void advance()
@@ -175,7 +119,7 @@ static void advance()
 			break;
 		}
 
-		errorAtCurrent(parser.current.start);
+		parser.errorAtCurrent(parser.current.start);
 	}
 }
 
@@ -188,7 +132,7 @@ static void consume(TokenType type, const char* message)
 		return;
 	}
 
-	errorAtCurrent(message);
+	parser.errorAtCurrent(message);
 }
 
 // See if the current token is the given type.
@@ -238,7 +182,7 @@ static void emitLoop(int loopStart)
 	// 2 to skip over the two offset bytes of the OP_LOOP instruction
 	const int offset = currentChunk()->code.count() - loopStart + 2;
 	if (offset > std::numeric_limits<uint16_t>::max()) {
-		error("Loop body is too large.");
+		parser.error("Loop body is too large.");
 	}
 
 	emitByte((offset >> 8) & 0xFF);
@@ -263,7 +207,7 @@ static int emitJump(uint8_t byte)
 {
 	const int constant = currentChunk()->addConstant(value);
 	if (constant > std::numeric_limits<uint8_t>::max()) {
-		error("Too many constants in one chunk.");
+		parser.error("Too many constants in one chunk.");
 	}
 	return static_cast<uint8_t>(constant);
 }
@@ -342,7 +286,7 @@ static void parsePrecedence(Precedence precedence)
 	advance();
 	ParseFn prefixRule = getRule(parser.previous.type)->prefix;
 	if (!prefixRule) {
-		error("Expected an expression.");
+		parser.error("Expected an expression.");
 		return;
 	}
 
@@ -356,7 +300,7 @@ static void parsePrecedence(Precedence precedence)
 	}
 
 	if (canAssign && match(TokenType::Equal)) {
-		error("Invalid assignment target.");
+		parser.error("Invalid assignment target.");
 	}
 }
 
@@ -383,7 +327,7 @@ static void parsePrecedence(Precedence precedence)
 		Local* local = &compiler->locals[i];
 		if (identifiersEqual(&local->name, name)) {
 			if (local->depth == Local::kUninitialized) {
-				error("Cannot reference a local variable in its own initializer.");
+				parser.error("Cannot reference a local variable in its own initializer.");
 			}
 			return i;
 		}
@@ -408,7 +352,7 @@ static void parsePrecedence(Precedence precedence)
 
 	// We ran out of space to store upvalues.
 	if (upvalueCount == kUInt8Count) {
-		error("Too many closure variables in function.");
+		parser.error("Too many closure variables in function.");
 		return 0;
 	}
 
@@ -451,7 +395,7 @@ static void addLocal(Token name)
 {
 	// The VM only supports a limited number of locals.
 	if (current->localCount == kUInt8Count) {
-		error("Too many local variables in function.");
+		parser.error("Too many local variables in function.");
 		return;
 	}
 
@@ -480,7 +424,7 @@ static void declareVariable()
 
 		if (identifiersEqual(&local->name, name)) {
 			// If the names match, then it's an error.
-			error("Variable with duplicate name");
+			parser.error("Variable with duplicate name");
 		}
 	}
 	addLocal(*name);
@@ -493,7 +437,7 @@ static uint8_t argumentList()
 		do {
 			expression();
 			if (argCount == 255) {
-				error("Can't have more than 255 arguments.");
+				parser.error("Can't have more than 255 arguments.");
 			}
 			++argCount;
 		} while (match(TokenType::Comma));
@@ -670,7 +614,7 @@ static void function(FunctionType type)
 		do {
 			++current->function->arity;
 			if (current->function->arity > kMaxFunctionArity) {
-				errorAtCurrent("Can't have more than 255 parameters.");
+				parser.errorAtCurrent("Can't have more than 255 parameters.");
 			}
 
 			const uint8_t constant = parseVariable("Expected parameter name.");
@@ -894,7 +838,7 @@ static void ifStatement()
 static void returnStatement()
 {
 	if (current->type == FunctionType::Script) {
-		error("Cannot return from top-level code.");
+		parser.error("Cannot return from top-level code.");
 	}
 
 	if (match(TokenType::Semicolon)) {
