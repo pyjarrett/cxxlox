@@ -85,6 +85,9 @@ struct Compiler {
 	[[nodiscard]] int32_t addUpvalue(uint8_t index, bool isLocal);
 	[[nodiscard]] int32_t resolveUpvalue(Token* name);
 
+	void beginScope();
+	void endScope();
+
 	// The parent function in which this compilation instance is occurring.
 	Compiler* enclosing = nullptr;
 
@@ -214,28 +217,6 @@ static ObjFunction* endCompiler()
 	return function;
 }
 
-static void beginScope()
-{
-	++current->scopeDepth;
-}
-
-static void endScope()
-{
-	--current->scopeDepth;
-
-	// Remove variables from the current scope from the top of the stack.
-	// Variables which are captured as upvalues must be saved, but all others
-	// can just be popped.
-	while (current->localCount > 0 && current->locals[current->localCount - 1].depth > current->scopeDepth) {
-		if (current->locals[current->localCount - 1].captured) {
-			emitByte(OP_CLOSE_UPVALUE);
-		} else {
-			emitByte(OP_POP);
-		}
-		--current->localCount;
-	}
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 // Parsing
 ///////////////////////////////////////////////////////////////////////////////
@@ -347,6 +328,28 @@ int32_t Compiler::resolveUpvalue(Token* name)
 
 	// Not found
 	return -1;
+}
+
+void Compiler::beginScope()
+{
+	++scopeDepth;
+}
+
+void Compiler::endScope()
+{
+	--scopeDepth;
+
+	// Remove variables from the current scope from the top of the stack.
+	// Variables which are captured as upvalues must be saved, but all others
+	// can just be popped.
+	while (current->localCount > 0 && current->locals[current->localCount - 1].depth > current->scopeDepth) {
+		if (current->locals[current->localCount - 1].captured) {
+			emitByte(OP_CLOSE_UPVALUE);
+		} else {
+			emitByte(OP_POP);
+		}
+		--current->localCount;
+	}
 }
 
 static void addLocal(Token name)
@@ -564,7 +567,7 @@ static void function(FunctionType type)
 	Compiler compiler(type);
 	current = &compiler;
 
-	beginScope();
+	current->beginScope();
 
 	// Parameter parsing
 	parser.consume(TokenType::LeftParen, "Expected `(` after function name.");
@@ -666,7 +669,7 @@ static void expressionStatement()
 //
 static void forStatement()
 {
-	beginScope();
+	current->beginScope();
 	parser.consume(TokenType::LeftParen, "Expected '(' after `for`.");
 
 	// Variable declaration and/or initializer
@@ -714,7 +717,7 @@ static void forStatement()
 		// Pop the condition.
 		emitByte(OP_POP);
 	}
-	endScope();
+	current->endScope();
 }
 
 // `if` <*> `(` condition `)`
@@ -825,9 +828,9 @@ static void statement()
 	} else if (parser.match(TokenType::While)) {
 		whileStatement();
 	} else if (parser.match(TokenType::LeftBrace)) {
-		beginScope();
+		current->beginScope();
 		block();
-		endScope();
+		current->endScope();
 	} else {
 		expressionStatement();
 	}
