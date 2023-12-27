@@ -127,6 +127,7 @@ struct Compiler {
 	void ifStatement();
 	void returnStatement();
 	void whileStatement();
+	void expressionStatement();
 
 	// The parent function in which this compilation instance is occurring.
 	Compiler* enclosing = nullptr;
@@ -660,12 +661,6 @@ static void function(FunctionType type)
 }
 
 
-static void expressionStatement()
-{
-	expression(clox::current);
-	parser.consume(TokenType::Semicolon, "Expected a ';' after expression.");
-	clox::current->emitByte(OP_POP);
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Syntactical functions
@@ -894,6 +889,13 @@ void Compiler::whileStatement()
 	emitLoop(loopStart);
 
 	patchJump(exitJump);
+	emitByte(OP_POP);
+}
+
+void Compiler::expressionStatement()
+{
+	expression(this);
+	parser.consume(TokenType::Semicolon, "Expected a ';' after expression.");
 	emitByte(OP_POP);
 }
 
