@@ -457,15 +457,15 @@ static void andOperator(Compiler* compiler, bool canAssign)
 
 	// The left hand side should on the top of the stack.
 	// Skip the right hand evaluation if it is false.
-	const int endJump = clox::current->emitJump(OP_JUMP_IF_FALSE);
+	const int endJump = compiler->emitJump(OP_JUMP_IF_FALSE);
 
 	// Remove left-hand side from the stack.
-	clox::current->emitByte(OP_POP);
+	compiler->emitByte(OP_POP);
 	parsePrecedence(compiler, PREC_AND);
 
 	// Evaluating the right-hand will leave the appropriate value on the top of
 	// the stack.
-	clox::current->patchJump(endJump);
+	compiler->patchJump(endJump);
 }
 
 // Short-circuiting `or` operator
@@ -483,17 +483,17 @@ static void orOperator(Compiler* compiler, bool canAssign)
 	CL_UNUSED(canAssign);
 
 	// The left side should be on the stack.
-	const int elseJump = clox::current->emitJump(OP_JUMP_IF_FALSE);
+	const int elseJump = compiler->emitJump(OP_JUMP_IF_FALSE);
 
 	// lhs was true, so bypass right-hand evaluation.
-	const int endJump = clox::current->emitJump(OP_JUMP);
+	const int endJump = compiler->emitJump(OP_JUMP);
 
 	// rhs evaluation
-	clox::current->patchJump(elseJump);
-	clox::current->emitByte(OP_POP); // pop lhs off the stack
+	compiler->patchJump(elseJump);
+	compiler->emitByte(OP_POP); // pop lhs off the stack
 	parsePrecedence(compiler, PREC_OR);
 
-	clox::current->patchJump(endJump);
+	compiler->patchJump(endJump);
 
 	// Leave either lhs or rhs on stack
 }
@@ -511,34 +511,34 @@ static void binary(Compiler* compiler, [[maybe_unused]] bool canAssign)
 	parsePrecedence(compiler, Precedence(rule->precedence + 1));
 	switch (operatorType) {
 		case TokenType::Plus:
-			clox::current->emitByte(OP_ADD);
+			compiler->emitByte(OP_ADD);
 			break;
 		case TokenType::Minus:
-			clox::current->emitByte(OP_SUBTRACT);
+			compiler->emitByte(OP_SUBTRACT);
 			break;
 		case TokenType::Star:
-			clox::current->emitByte(OP_MULTIPLY);
+			compiler->emitByte(OP_MULTIPLY);
 			break;
 		case TokenType::Slash:
-			clox::current->emitByte(OP_DIVIDE);
+			compiler->emitByte(OP_DIVIDE);
 			break;
 		case TokenType::EqualEqual:
-			clox::current->emitByte(OP_EQUAL);
+			compiler->emitByte(OP_EQUAL);
 			break;
 		case TokenType::BangEqual:
-			clox::current->emitBytes(OP_EQUAL, OP_NOT);
+			compiler->emitBytes(OP_EQUAL, OP_NOT);
 			break;
 		case TokenType::Less:
-			clox::current->emitByte(OP_LESS);
+			compiler->emitByte(OP_LESS);
 			break;
 		case TokenType::LessEqual:
-			clox::current->emitBytes(OP_GREATER, OP_NOT);
+			compiler->emitBytes(OP_GREATER, OP_NOT);
 			break;
 		case TokenType::Greater:
-			clox::current->emitByte(OP_GREATER);
+			compiler->emitByte(OP_GREATER);
 			break;
 		case TokenType::GreaterEqual:
-			clox::current->emitBytes(OP_LESS, OP_NOT);
+			compiler->emitBytes(OP_LESS, OP_NOT);
 			break;
 		default:
 			CL_ASSERT(false); // Unknown operator type.
@@ -774,11 +774,11 @@ static void returnStatement(Compiler* compiler)
 	}
 
 	if (parser.match(TokenType::Semicolon)) {
-		clox::current->emitReturn();
+		compiler->emitReturn();
 	} else {
-		expression(clox::current);
+		expression(compiler);
 		parser.consume(TokenType::Semicolon, "Expected ';' after return expression.");
-		clox::current->emitByte(OP_RETURN);
+		compiler->emitByte(OP_RETURN);
 	}
 }
 
@@ -794,19 +794,19 @@ static void returnStatement(Compiler* compiler)
 //
 static void whileStatement(Compiler* compiler)
 {
-	const int loopStart = clox::current->chunk()->code.count();
+	const int loopStart = compiler->chunk()->code.count();
 
 	parser.consume(TokenType::LeftParen, "Expected '(' after while.");
-	expression(clox::current);
+	expression(compiler);
 	parser.consume(TokenType::RightParen, "Expected ')' after while condition.");
 
-	const int exitJump = clox::current->emitJump(OP_JUMP_IF_FALSE);
-	clox::current->emitByte(OP_POP);
+	const int exitJump = compiler->emitJump(OP_JUMP_IF_FALSE);
+	compiler->emitByte(OP_POP);
 	statement();
-	clox::current->emitLoop(loopStart);
+	compiler->emitLoop(loopStart);
 
-	clox::current->patchJump(exitJump);
-	clox::current->emitByte(OP_POP);
+	compiler->patchJump(exitJump);
+	compiler->emitByte(OP_POP);
 }
 
 static void declaration()
@@ -851,7 +851,7 @@ static void statement()
 // encountered.
 static void grouping(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
-	expression(clox::current);
+	expression(compiler);
 	parser.consume(TokenType::RightParen, "Expected ')' after expression.");
 }
 
@@ -866,10 +866,10 @@ static void unary(Compiler* compiler, [[maybe_unused]] bool canAssign)
 	// below this operand to have it applied to that expression's result.
 	switch (operatorType) {
 		case TokenType::Minus:
-			clox::current->emitByte(OP_NEGATE);
+			compiler->emitByte(OP_NEGATE);
 			break;
 		case TokenType::Bang:
-			clox::current->emitByte(OP_NOT);
+			compiler->emitByte(OP_NOT);
 			break;
 		default:
 			CL_FATAL("Unexpected unary operation token.");
@@ -885,14 +885,14 @@ static void number(Compiler* compiler, [[maybe_unused]] bool canAssign)
 		CL_ASSERT(false); // Invalid conversion.
 		value = 0.0;
 	}
-	clox::current->emitConstant(Value::makeNumber(value));
+	compiler->emitConstant(Value::makeNumber(value));
 }
 
 static void string(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
 	const std::string_view previous = parser.previous.view();
 	const std::string_view withoutQuotes = previous.substr(1, previous.length() - 2);
-	clox::current->emitConstant(Value::makeString(copyString(withoutQuotes.data(), withoutQuotes.length())));
+	compiler->emitConstant(Value::makeString(copyString(withoutQuotes.data(), withoutQuotes.length())));
 }
 
 // Emit the variable and appropriate op code to get or set a variable,
@@ -934,13 +934,13 @@ static void literal(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
 	switch (parser.previous.type) {
 		case TokenType::Nil:
-			clox::current->emitByte(OP_NIL);
+			compiler->emitByte(OP_NIL);
 			break;
 		case TokenType::True:
-			clox::current->emitByte(OP_TRUE);
+			compiler->emitByte(OP_TRUE);
 			break;
 		case TokenType::False:
-			clox::current->emitByte(OP_FALSE);
+			compiler->emitByte(OP_FALSE);
 			break;
 		default:
 			CL_FATAL("Unexpected literal type.");
