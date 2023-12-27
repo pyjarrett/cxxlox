@@ -13,7 +13,7 @@ protected:
 	void SetUp() override
 	{
 		// Interned strings rely on the VM.
-		VM::reset();
+		VM::instance().reset();
 	}
 };
 

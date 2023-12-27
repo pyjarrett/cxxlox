@@ -68,6 +68,8 @@ void runFile(const char* fileName)
 	if (result == InterpretResult::CompileError) {
 		exit(ExitCodeDataFormatError);
 	}
+
+	VM::instance().reset();
 }
 
 int runMain(int argc, char** argv)

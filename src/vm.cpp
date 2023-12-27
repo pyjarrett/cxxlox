@@ -17,8 +17,6 @@
 
 namespace cxxlox {
 
-VM* VM::s_instance = nullptr;
-
 using ClockType = std::chrono::high_resolution_clock;
 static auto programStart = ClockType::now();
 
@@ -35,6 +33,22 @@ static void freeObj(Obj* obj)
 			ObjString* str = reinterpret_cast<ObjString*>(obj);
 			delete str;
 		} break;
+		case ObjType::Closure: {
+			ObjClosure* closure = reinterpret_cast<ObjClosure*>(obj);
+			delete closure;
+		} break;
+		case ObjType::Function: {
+			ObjFunction* fn = reinterpret_cast<ObjFunction*>(obj);
+			delete fn;
+		} break;
+		case ObjType::Native: {
+			ObjNative* fn = reinterpret_cast<ObjNative*>(obj);
+			delete fn;
+		} break;
+		case ObjType::Upvalue: {
+			ObjUpvalue* upvalue = reinterpret_cast<ObjUpvalue*>(obj);
+			delete upvalue;
+		} break;
 		default:
 			CL_FATAL("Unknown object type.");
 	}
@@ -43,21 +57,8 @@ static void freeObj(Obj* obj)
 /// Global VM, to prevent from needing to pass one to every function call.
 /* static */ VM& VM::instance()
 {
-	// I want to be able to reset the instance for testing.  This isn't
-	// threadsafe, but this is also a toy implementation.
-	if (!s_instance) {
-		s_instance = new VM;
-
-		// Deviation: cannot put in initVM(i.e. VM::VM) since it requires the VM.
-		s_instance->defineNative("clock", clockNative);
-	}
-	return *s_instance;
-}
-
-/* static */ void VM::reset()
-{
-	delete s_instance;
-	s_instance = new VM;
+	static VM instance;
+	return instance;
 }
 
 VM::VM()
@@ -68,6 +69,15 @@ VM::VM()
 VM::~VM()
 {
 	freeObjects();
+}
+
+void VM::reset()
+{
+	// In-place destroy and construct.
+	// Ugly, but I don't really want to expose a copy or move constructor, and
+	// there's a bunch of arrays.
+	this->~VM();
+	new (this) VM();
 }
 
 void VM::resetStack()
@@ -205,12 +215,14 @@ bool VM::callValue(Value callee, int argCount)
 	return false;
 }
 
-ObjUpvalue* VM::captureUpvalue(Value* local) {
+ObjUpvalue* VM::captureUpvalue(Value* local)
+{
 	// The value pointed to by local might already be capture as an upvalue.
 	// Look for it, so it isn't captured twice.
 	ObjUpvalue* previous = nullptr;
 	ObjUpvalue* current = openUpvalues;
-	while (current != nullptr && reinterpret_cast<std::uintptr_t>(current->location) > reinterpret_cast<std::uintptr_t>(local)) {
+	while (current != nullptr &&
+		   reinterpret_cast<std::uintptr_t>(current->location) > reinterpret_cast<std::uintptr_t>(local)) {
 		previous = current;
 		current = current->next;
 	}
@@ -226,8 +238,7 @@ ObjUpvalue* VM::captureUpvalue(Value* local) {
 	createdUpvalue->next = current;
 	if (previous) {
 		previous->next = createdUpvalue;
-	}
-	else {
+	} else {
 		openUpvalues = createdUpvalue;
 	}
 
@@ -254,6 +265,11 @@ void VM::freeObjects()
 		freeObj(obj);
 		obj = next;
 	}
+}
+
+void VM::loadNativeFunctions()
+{
+	defineNative("clock", clockNative);
 }
 
 // I don't like the lambda here, but I'm just trying to do this without macros.
@@ -351,8 +367,7 @@ InterpretResult VM::run()
 					int32_t index = readByte();
 					if (isLocal) {
 						closure->upvalues[i] = captureUpvalue(currentFrame()->slots + index);
-					}
-					else {
+					} else {
 						// The current frame is the surrounding frame of the closure
 						// being loaded here.
 						closure->upvalues[i] = currentFrame()->closure->upvalues[index];
@@ -495,6 +510,12 @@ InterpretResult VM::run()
 
 InterpretResult VM::interpret(const std::string& source)
 {
+	// Deviation: Cannot load native functions in c'tor since allocateObj needs
+	// to ask the VM to track the native function.
+	if (!loadedNativeFunctions) {
+		loadNativeFunctions();
+	}
+
 	ObjFunction* function = compile(source);
 	if (!function) {
 		return InterpretResult::CompileError;

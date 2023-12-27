@@ -39,7 +39,9 @@ struct VM {
 	static constexpr int32_t kStackMax = kFramesMax * kUInt8Count;
 
 	static VM& instance();
-	static void reset();
+
+	// Function for resetting the VM during testing.
+	void reset();
 
 	// I tried using CL_FORCE_INLINE on this, but it optimizes down to 3
 	// instructions at -O2 on GCC, force inlining takes 6 in debug and pollutes
@@ -83,6 +85,8 @@ private:
 	void resetStack();
 	void freeObjects();
 
+	void loadNativeFunctions();
+
 	/// The current state of the active chain of program function calls.
 	CallFrame frames[kFramesMax];
 	int32_t frameCount = 0;
@@ -106,7 +110,7 @@ private:
 	// A list of live upvalues.
 	ObjUpvalue* openUpvalues = nullptr;
 
-	static VM* s_instance;
+	bool loadedNativeFunctions = false;
 };
 
 InterpretResult interpret(const std::string& source);
