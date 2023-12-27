@@ -1026,12 +1026,10 @@ ObjFunction* compile(const std::string& source)
 	// Maybe something with iterators over a string might be better?
 	initScanner(source.data());
 
-	// FIXME: This is a horribly bad idea.
-	static Compiler compiler(nullptr, FunctionType::Script);
+	Compiler compiler(nullptr, FunctionType::Script);
 
 	// Reset the parser.
 	parser = {};
-
 	parser.advance();
 
 	while (!parser.match(TokenType::Eof)) {
