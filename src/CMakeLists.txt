@@ -7,6 +7,7 @@ set(CXXLOX_SRCS
     memory.cpp
     object.cpp
     object_allocator.cpp
+    parser.cpp
     pratt.cpp
     scanner.cpp
     table.cpp
@@ -26,6 +27,7 @@ set(CXXLOX_HEADERS
     memory.hpp
     object.hpp
     object_allocator.hpp
+    parser.hpp
     pratt.hpp
     scanner.hpp
     table.hpp
