@@ -92,6 +92,10 @@ struct Compiler {
 
 	[[nodiscard]] uint8_t makeConstant(Value value);
 	[[nodiscard]] uint8_t identifierConstant(Token* name);
+	void addLocal(Token name);
+	void declareVariable();
+
+	[[nodiscard]] uint8_t parseVariable(const char* errorMessage);
 
 	////////////////////////////////////////////////////////////////////////////
 	// Bytecode emission
@@ -363,7 +367,7 @@ void Compiler::endScope()
 	}
 }
 
-static void addLocal(Token name)
+void Compiler::addLocal(Token name)
 {
 	// The VM only supports a limited number of locals.
 	if (current->localCount == kUInt8Count) {
@@ -376,20 +380,20 @@ static void addLocal(Token name)
 	local->depth = Local::kUninitialized;
 }
 
-static void declareVariable()
+void Compiler::declareVariable()
 {
 	// Variables declared without a scope are global.
-	if (current->scopeDepth == 0) {
+	if (scopeDepth == 0) {
 		return;
 	}
 
 	Token* name = &parser.previous;
 
 	// Look for variables with similar names, starting with the current scope.
-	for (int i = current->localCount - 1; i >= 0; --i) {
+	for (int i = localCount - 1; i >= 0; --i) {
 
-		Local* local = &current->locals[i];
-		if (local->depth != Local::kUninitialized && local->depth < current->scopeDepth) {
+		Local* local = &locals[i];
+		if (local->depth != Local::kUninitialized && local->depth < scopeDepth) {
 			// We've proceeded above the new variable's scope.
 			break;
 		}
@@ -420,17 +424,17 @@ static uint8_t argumentList()
 
 // Look for a variable, returning the index in the constants map.
 // If the variable is a local variable, then return 0.
-[[nodiscard]] static uint8_t parseVariable(const char* errorMessage)
+uint8_t Compiler::parseVariable(const char* errorMessage)
 {
 	parser.consume(TokenType::Identifier, errorMessage);
 	declareVariable();
 
 	// The variable is local.
-	if (current->scopeDepth > 0) {
+	if (scopeDepth > 0) {
 		return 0;
 	}
 
-	return current->identifierConstant(&parser.previous);
+	return identifierConstant(&parser.previous);
 }
 
 // Marks the top variable as initialized.
@@ -589,7 +593,7 @@ static void function(FunctionType type)
 				parser.errorAtCurrent("Can't have more than 255 parameters.");
 			}
 
-			const uint8_t constant = parseVariable("Expected parameter name.");
+			const uint8_t constant = current->parseVariable("Expected parameter name.");
 			defineVariable(constant);
 		} while (parser.match(TokenType::Comma));
 	}
@@ -618,7 +622,7 @@ static void function(FunctionType type)
 
 static void functionDeclaration()
 {
-	const uint8_t global = parseVariable("Expected a function name.");
+	const uint8_t global = current->parseVariable("Expected a function name.");
 	markInitialized();
 
 	// This isn't part of a top level script.
@@ -628,7 +632,7 @@ static void functionDeclaration()
 
 static void varDeclaration()
 {
-	const uint8_t global = parseVariable("Expected a variable name.");
+	const uint8_t global = current->parseVariable("Expected a variable name.");
 	if (parser.match(TokenType::Equal)) {
 		expression();
 	} else {
