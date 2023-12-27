@@ -62,6 +62,8 @@ enum class FunctionType
 
 struct Compiler;
 
+// Global compilation state.  Not preferred, but how the book
+// handles it.
 static Parser parser;
 static Compiler* current = nullptr;
 
@@ -114,9 +116,6 @@ static void expression();
 static const ParseRule* getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 
-static bool check(TokenType type);
-static bool match(TokenType type);
-static void consume(TokenType type, const char* errorMessage);
 static uint8_t makeConstant(Value value);
 static void emitByte(uint8_t byte);
 static void emitBytes(uint8_t byte1, uint8_t byte2);
@@ -169,6 +168,9 @@ static void error(const char* message)
 	errorAt(parser.previous, message);
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// Token operations
+///////////////////////////////////////////////////////////////////////////////
 static void advance()
 {
 	parser.previous = parser.current;
@@ -182,6 +184,35 @@ static void advance()
 
 		errorAtCurrent(parser.current.start);
 	}
+}
+
+// Expect the next token to be a given type, move along if it is, otherwise
+// emit an error message.
+static void consume(TokenType type, const char* message)
+{
+	if (parser.current.type == type) {
+		advance();
+		return;
+	}
+
+	errorAtCurrent(message);
+}
+
+// See if the current token is the given type.
+[[nodiscard]] static bool check(TokenType type)
+{
+	return parser.current.type == type;
+}
+
+// Advance and return true if the current token type is found, false otherwise
+[[nodiscard]] static bool match(TokenType type)
+{
+	if (!check(type)) {
+		return false;
+	}
+
+	advance();
+	return true;
 }
 
 static void parsePrecedence(Precedence precedence)
@@ -435,38 +466,8 @@ static void orOperator(bool canAssign)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Token operations
+// State management
 ///////////////////////////////////////////////////////////////////////////////
-
-// Expect the next token to be a given type, move along if it is, otherwise
-// emit an error message.
-static void consume(TokenType type, const char* message)
-{
-	if (parser.current.type == type) {
-		advance();
-		return;
-	}
-
-	errorAtCurrent(message);
-}
-
-// See if the current token is the given type.
-[[nodiscard]] static bool check(TokenType type)
-{
-	return parser.current.type == type;
-}
-
-// Advance and return true if the current token type is found, false otherwise
-[[nodiscard]] static bool match(TokenType type)
-{
-	if (!check(type)) {
-		return false;
-	}
-
-	advance();
-	return true;
-}
-
 [[nodiscard]] CL_FORCE_INLINE Chunk* currentChunk()
 {
 	return &current->function->chunk;
