@@ -88,6 +88,8 @@ struct Compiler {
 	void beginScope();
 	void endScope();
 
+	[[nodiscard]] Chunk* chunk() { return &function->chunk; }
+
 	// The parent function in which this compilation instance is occurring.
 	Compiler* enclosing = nullptr;
 
@@ -117,17 +119,13 @@ static const ParseRule* getRule(TokenType type);
 ///////////////////////////////////////////////////////////////////////////////
 // State management
 ///////////////////////////////////////////////////////////////////////////////
-[[nodiscard]] CL_FORCE_INLINE Chunk* currentChunk()
-{
-	return &current->function->chunk;
-}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Bytecode emission
 ///////////////////////////////////////////////////////////////////////////////
 static void emitByte(uint8_t byte)
 {
-	currentChunk()->write(byte, parser.previous.line);
+	current->chunk()->write(byte, parser.previous.line);
 }
 
 static void emitBytes(uint8_t byte1, uint8_t byte2)
@@ -142,7 +140,7 @@ static void emitLoop(int loopStart)
 	emitByte(OP_LOOP);
 
 	// 2 to skip over the two offset bytes of the OP_LOOP instruction
-	const int offset = currentChunk()->code.count() - loopStart + 2;
+	const int offset = current->chunk()->code.count() - loopStart + 2;
 	if (offset > std::numeric_limits<uint16_t>::max()) {
 		parser.error("Loop body is too large.");
 	}
@@ -162,12 +160,12 @@ static int emitJump(uint8_t byte)
 	emitByte(0xFF);
 	emitByte(0xFF);
 
-	return currentChunk()->code.count() - 2;
+	return current->chunk()->code.count() - 2;
 }
 
 [[nodiscard]] static uint8_t makeConstant(Value value)
 {
-	const int constant = currentChunk()->addConstant(value);
+	const int constant = current->chunk()->addConstant(value);
 	if (constant > std::numeric_limits<uint8_t>::max()) {
 		parser.error("Too many constants in one chunk.");
 	}
@@ -183,14 +181,14 @@ static void emitConstant(Value value)
 static void patchJump(int offset)
 {
 	// The location being jumped from is the
-	const int target = currentChunk()->code.count() - offset - 2;
+	const int target = current->chunk()->code.count() - offset - 2;
 
 	CL_ASSERT(target > 0);
 
 	// TODO: This feels weird putting the larger byte in first on little-endian
 	// I'd expect these to be swapped.
-	currentChunk()->code[offset] = (target >> 8) & 0xFF;
-	currentChunk()->code[offset + 1] = target & 0xFF;
+	current->chunk()->code[offset] = (target >> 8) & 0xFF;
+	current->chunk()->code[offset + 1] = target & 0xFF;
 }
 
 static void emitReturn()
@@ -209,7 +207,7 @@ static ObjFunction* endCompiler()
 	ObjFunction* function = current->function;
 #ifdef DEBUG_PRINT_CODE
 	if (!parser.hadError) {
-		disassembleChunk(*currentChunk(), function->name != nullptr ? function->name->chars : "<script>");
+		disassembleChunk(*current->chunk(), function->name != nullptr ? function->name->chars : "<script>");
 	}
 #endif
 
@@ -682,7 +680,7 @@ static void forStatement()
 	}
 
 	// Condition
-	int loopStart = currentChunk()->code.count();
+	int loopStart = current->chunk()->code.count();
 	int exitJump = -1;
 	if (!parser.match(TokenType::Semicolon)) {
 		expression();
@@ -695,7 +693,7 @@ static void forStatement()
 	if (!parser.match(TokenType::RightParen)) {
 		// Skip increment on initial loop pass.
 		const int bodyJump = emitJump(OP_JUMP);
-		const int increment = currentChunk()->code.count();
+		const int increment = current->chunk()->code.count();
 		expression();
 		emitByte(OP_POP);
 		parser.consume(TokenType::RightParen, "Expected ')' after `for` clauses.");
@@ -756,9 +754,9 @@ static void ifStatement()
 	patchJump(elseJump);
 }
 
-static void returnStatement()
+static void returnStatement(Compiler* compiler)
 {
-	if (current->type == FunctionType::Script) {
+	if (compiler->type == FunctionType::Script) {
 		parser.error("Cannot return from top-level code.");
 	}
 
@@ -781,9 +779,9 @@ static void returnStatement()
 // Jump to condition evaluation ---> | ->+
 // Pop condition <-------------------+
 //
-static void whileStatement()
+static void whileStatement(Compiler* compiler)
 {
-	const int loopStart = currentChunk()->code.count();
+	const int loopStart = current->chunk()->code.count();
 
 	parser.consume(TokenType::LeftParen, "Expected '(' after while.");
 	expression();
@@ -824,9 +822,9 @@ static void statement()
 	} else if (parser.match(TokenType::If)) {
 		ifStatement();
 	} else if (parser.match(TokenType::Return)) {
-		returnStatement();
+		returnStatement(current);
 	} else if (parser.match(TokenType::While)) {
-		whileStatement();
+		whileStatement(current);
 	} else if (parser.match(TokenType::LeftBrace)) {
 		current->beginScope();
 		block();
