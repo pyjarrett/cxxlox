@@ -495,107 +495,6 @@ void Compiler::namedVariable(Token name, bool canAssign)
 	}
 }
 
-// Short-circuiting `and` operator.
-static void andOperator(Compiler* compiler, bool canAssign)
-{
-	CL_UNUSED(canAssign);
-
-	// The left hand side should on the top of the stack.
-	// Skip the right hand evaluation if it is false.
-	const int endJump = compiler->emitJump(OP_JUMP_IF_FALSE);
-
-	// Remove left-hand side from the stack.
-	compiler->emitByte(OP_POP);
-	parsePrecedence(compiler, PREC_AND);
-
-	// Evaluating the right-hand will leave the appropriate value on the top of
-	// the stack.
-	compiler->patchJump(endJump);
-}
-
-// Short-circuiting `or` operator
-//
-// lhs || right
-//
-// lhs on stack
-// if false, go to rhs ----------->+
-// was true, so go to end ---->+   |
-// pop       <---------------- |  --+
-// evaluate right-hand side    |
-// <---------------------------+
-static void orOperator(Compiler* compiler, bool canAssign)
-{
-	CL_UNUSED(canAssign);
-
-	// The left side should be on the stack.
-	const int elseJump = compiler->emitJump(OP_JUMP_IF_FALSE);
-
-	// lhs was true, so bypass right-hand evaluation.
-	const int endJump = compiler->emitJump(OP_JUMP);
-
-	// rhs evaluation
-	compiler->patchJump(elseJump);
-	compiler->emitByte(OP_POP); // pop lhs off the stack
-	parsePrecedence(compiler, PREC_OR);
-
-	compiler->patchJump(endJump);
-
-	// Leave either lhs or rhs on stack
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Syntactical structures
-///////////////////////////////////////////////////////////////////////////////
-static void binary(Compiler* compiler, [[maybe_unused]] bool canAssign)
-{
-	const TokenType operatorType = parser.previous.type;
-	const ParseRule* rule = getRule(operatorType);
-	// Parse the next level up, since all our binary rules are left associative.
-	// This would be different if right-associative operators were handled, and
-	// we would use the same level of precedence again here.
-	parsePrecedence(compiler, Precedence(rule->precedence + 1));
-	switch (operatorType) {
-		case TokenType::Plus:
-			compiler->emitByte(OP_ADD);
-			break;
-		case TokenType::Minus:
-			compiler->emitByte(OP_SUBTRACT);
-			break;
-		case TokenType::Star:
-			compiler->emitByte(OP_MULTIPLY);
-			break;
-		case TokenType::Slash:
-			compiler->emitByte(OP_DIVIDE);
-			break;
-		case TokenType::EqualEqual:
-			compiler->emitByte(OP_EQUAL);
-			break;
-		case TokenType::BangEqual:
-			compiler->emitBytes(OP_EQUAL, OP_NOT);
-			break;
-		case TokenType::Less:
-			compiler->emitByte(OP_LESS);
-			break;
-		case TokenType::LessEqual:
-			compiler->emitBytes(OP_GREATER, OP_NOT);
-			break;
-		case TokenType::Greater:
-			compiler->emitByte(OP_GREATER);
-			break;
-		case TokenType::GreaterEqual:
-			compiler->emitBytes(OP_LESS, OP_NOT);
-			break;
-		default:
-			CL_ASSERT(false); // Unknown operator type.
-	}
-}
-
-static void call(Compiler* compiler, bool canAssign)
-{
-	const uint8_t argCount = argumentList(compiler);
-	compiler->emitBytes(OP_CALL, argCount);
-}
-
 static void block()
 {
 	while (!parser.check(TokenType::Eof) && !parser.check(TokenType::RightBrace)) {
@@ -655,8 +554,6 @@ static void function(FunctionType type)
 	// The call frame is going to get popped if it's an inner function, and the
 	// program is terminating if it's the outermost script level.
 }
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Syntactical functions
@@ -720,7 +617,6 @@ void Compiler::statement()
 		expressionStatement();
 	}
 }
-
 
 // Parse a print statement, assuming the previous token is "print".
 void Compiler::printStatement()
@@ -808,7 +704,6 @@ void Compiler::forStatement()
 	endScope();
 }
 
-
 // `if` <*> `(` condition `)`
 //     statement
 // `else`
@@ -844,7 +739,6 @@ void Compiler::ifStatement()
 	}
 	patchJump(elseJump);
 }
-
 
 void Compiler::returnStatement()
 {
@@ -898,6 +792,108 @@ void Compiler::expressionStatement()
 void Compiler::expression()
 {
 	parsePrecedence(this, PREC_ASSIGNMENT);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Pratt rule functions
+///////////////////////////////////////////////////////////////////////////////
+
+// Short-circuiting `and` operator.
+static void andOperator(Compiler* compiler, bool canAssign)
+{
+	CL_UNUSED(canAssign);
+
+	// The left hand side should on the top of the stack.
+	// Skip the right hand evaluation if it is false.
+	const int endJump = compiler->emitJump(OP_JUMP_IF_FALSE);
+
+	// Remove left-hand side from the stack.
+	compiler->emitByte(OP_POP);
+	parsePrecedence(compiler, PREC_AND);
+
+	// Evaluating the right-hand will leave the appropriate value on the top of
+	// the stack.
+	compiler->patchJump(endJump);
+}
+
+// Short-circuiting `or` operator
+//
+// lhs || right
+//
+// lhs on stack
+// if false, go to rhs ----------->+
+// was true, so go to end ---->+   |
+// pop       <---------------- |  --+
+// evaluate right-hand side    |
+// <---------------------------+
+static void orOperator(Compiler* compiler, bool canAssign)
+{
+	CL_UNUSED(canAssign);
+
+	// The left side should be on the stack.
+	const int elseJump = compiler->emitJump(OP_JUMP_IF_FALSE);
+
+	// lhs was true, so bypass right-hand evaluation.
+	const int endJump = compiler->emitJump(OP_JUMP);
+
+	// rhs evaluation
+	compiler->patchJump(elseJump);
+	compiler->emitByte(OP_POP); // pop lhs off the stack
+	parsePrecedence(compiler, PREC_OR);
+
+	compiler->patchJump(endJump);
+
+	// Leave either lhs or rhs on stack
+}
+
+static void binary(Compiler* compiler, [[maybe_unused]] bool canAssign)
+{
+	const TokenType operatorType = parser.previous.type;
+	const ParseRule* rule = getRule(operatorType);
+	// Parse the next level up, since all our binary rules are left associative.
+	// This would be different if right-associative operators were handled, and
+	// we would use the same level of precedence again here.
+	parsePrecedence(compiler, Precedence(rule->precedence + 1));
+	switch (operatorType) {
+		case TokenType::Plus:
+			compiler->emitByte(OP_ADD);
+			break;
+		case TokenType::Minus:
+			compiler->emitByte(OP_SUBTRACT);
+			break;
+		case TokenType::Star:
+			compiler->emitByte(OP_MULTIPLY);
+			break;
+		case TokenType::Slash:
+			compiler->emitByte(OP_DIVIDE);
+			break;
+		case TokenType::EqualEqual:
+			compiler->emitByte(OP_EQUAL);
+			break;
+		case TokenType::BangEqual:
+			compiler->emitBytes(OP_EQUAL, OP_NOT);
+			break;
+		case TokenType::Less:
+			compiler->emitByte(OP_LESS);
+			break;
+		case TokenType::LessEqual:
+			compiler->emitBytes(OP_GREATER, OP_NOT);
+			break;
+		case TokenType::Greater:
+			compiler->emitByte(OP_GREATER);
+			break;
+		case TokenType::GreaterEqual:
+			compiler->emitBytes(OP_LESS, OP_NOT);
+			break;
+		default:
+			CL_ASSERT(false); // Unknown operator type.
+	}
+}
+
+static void call(Compiler* compiler, bool canAssign)
+{
+	const uint8_t argCount = argumentList(compiler);
+	compiler->emitBytes(OP_CALL, argCount);
 }
 
 // Grouping expression like "(expr)".  Assumes the leading "(" has already been
