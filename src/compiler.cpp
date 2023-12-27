@@ -252,12 +252,12 @@ static void parsePrecedence(Precedence precedence)
 	}
 
 	const bool canAssign = precedence <= PREC_ASSIGNMENT;
-	prefixRule(canAssign);
+	prefixRule(clox::current, canAssign);
 
 	while (precedence <= getRule(parser.current.type)->precedence) {
 		parser.advance();
 		ParseFn infixRule = getRule(parser.previous.type)->infix;
-		infixRule(canAssign);
+		infixRule(clox::current, canAssign);
 	}
 
 	if (canAssign && parser.match(TokenType::Equal)) {
@@ -451,7 +451,7 @@ void Compiler::defineVariable(uint8_t global)
 }
 
 // Short-circuiting `and` operator.
-static void andOperator(bool canAssign)
+static void andOperator(Compiler* compiler, bool canAssign)
 {
 	CL_UNUSED(canAssign);
 
@@ -478,7 +478,7 @@ static void andOperator(bool canAssign)
 // pop       <---------------- |  --+
 // evaluate right-hand side    |
 // <---------------------------+
-static void orOperator(bool canAssign)
+static void orOperator(Compiler* compiler, bool canAssign)
 {
 	CL_UNUSED(canAssign);
 
@@ -501,7 +501,7 @@ static void orOperator(bool canAssign)
 ///////////////////////////////////////////////////////////////////////////////
 // Syntactical structures
 ///////////////////////////////////////////////////////////////////////////////
-static void binary([[maybe_unused]] bool canAssign)
+static void binary(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
 	const TokenType operatorType = parser.previous.type;
 	const ParseRule* rule = getRule(operatorType);
@@ -545,7 +545,7 @@ static void binary([[maybe_unused]] bool canAssign)
 	}
 }
 
-static void call(bool canAssign)
+static void call(Compiler* compiler, bool canAssign)
 {
 	const uint8_t argCount = argumentList();
 	clox::current->emitBytes(OP_CALL, argCount);
@@ -849,13 +849,13 @@ static void statement()
 
 // Grouping expression like "(expr)".  Assumes the leading "(" has already been
 // encountered.
-static void grouping([[maybe_unused]] bool canAssign)
+static void grouping(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
 	expression();
 	parser.consume(TokenType::RightParen, "Expected ')' after expression.");
 }
 
-static void unary([[maybe_unused]] bool canAssign)
+static void unary(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
 	const TokenType operatorType = parser.previous.type;
 
@@ -876,7 +876,7 @@ static void unary([[maybe_unused]] bool canAssign)
 	}
 }
 
-static void number([[maybe_unused]] bool canAssign)
+static void number(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
 	double value;
 	const auto result = std::from_chars(parser.previous.start, parser.previous.start + parser.previous.length, value);
@@ -888,7 +888,7 @@ static void number([[maybe_unused]] bool canAssign)
 	clox::current->emitConstant(Value::makeNumber(value));
 }
 
-static void string([[maybe_unused]] bool canAssign)
+static void string(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
 	const std::string_view previous = parser.previous.view();
 	const std::string_view withoutQuotes = previous.substr(1, previous.length() - 2);
@@ -925,12 +925,12 @@ static void namedVariable(Token name, bool canAssign)
 	}
 }
 
-static void variable(bool canAssign)
+static void variable(Compiler* compiler, bool canAssign)
 {
 	namedVariable(parser.previous, canAssign);
 }
 
-static void literal([[maybe_unused]] bool canAssign)
+static void literal(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
 	switch (parser.previous.type) {
 		case TokenType::Nil:

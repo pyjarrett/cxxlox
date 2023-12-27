@@ -20,7 +20,9 @@ enum Precedence
 	PREC_PRIMARY
 };
 
-using ParseFn = void (*)(bool canAssign);
+struct Compiler;
+
+using ParseFn = void (*)(Compiler* compiler, bool canAssign);
 
 // Pratt parsing rule.
 struct ParseRule {
