@@ -121,6 +121,10 @@ struct Compiler {
 	void functionDeclaration();
 	void varDeclaration();
 
+	void statement();
+	void returnStatement();
+	void whileStatement();
+
 	// The parent function in which this compilation instance is occurring.
 	Compiler* enclosing = nullptr;
 
@@ -142,7 +146,6 @@ struct Compiler {
 ///////////////////////////////////////////////////////////////////////////////
 // Forward declarations
 ///////////////////////////////////////////////////////////////////////////////
-static void statement();
 static void expression(Compiler* compiler);
 static const ParseRule* getRule(TokenType type);
 
@@ -734,7 +737,7 @@ static void forStatement()
 		clox::current->patchJump(bodyJump);
 	}
 
-	statement();
+	clox::current->statement();
 	clox::current->emitLoop(loopStart);
 
 	if (exitJump != -1) {
@@ -770,58 +773,16 @@ static void ifStatement()
 
 	const int thenJump = clox::current->emitJump(OP_JUMP_IF_FALSE);
 	clox::current->emitByte(OP_POP);
-	statement();
+	clox::current->statement();
 
 	const int elseJump = clox::current->emitJump(OP_JUMP);
 	clox::current->patchJump(thenJump);
 	clox::current->emitByte(OP_POP);
 
 	if (parser.match(TokenType::Else)) {
-		statement();
+		clox::current->statement();
 	}
 	clox::current->patchJump(elseJump);
-}
-
-static void returnStatement(Compiler* compiler)
-{
-	if (compiler->type == FunctionType::Script) {
-		parser.error("Cannot return from top-level code.");
-	}
-
-	if (parser.match(TokenType::Semicolon)) {
-		compiler->emitReturn();
-	} else {
-		expression(compiler);
-		parser.consume(TokenType::Semicolon, "Expected ';' after return expression.");
-		compiler->emitByte(OP_RETURN);
-	}
-}
-
-// `while` `(` expression `)`
-//    statement
-//
-// Evaluate condition  <-----------------+
-// Skip loop if condition not met--->+   |
-// Pop condition                     |   |
-// Execute the loop                  |   |
-// Jump to condition evaluation ---> | ->+
-// Pop condition <-------------------+
-//
-static void whileStatement(Compiler* compiler)
-{
-	const int loopStart = compiler->chunk()->code.count();
-
-	parser.consume(TokenType::LeftParen, "Expected '(' after while.");
-	expression(compiler);
-	parser.consume(TokenType::RightParen, "Expected ')' after while condition.");
-
-	const int exitJump = compiler->emitJump(OP_JUMP_IF_FALSE);
-	compiler->emitByte(OP_POP);
-	statement();
-	compiler->emitLoop(loopStart);
-
-	compiler->patchJump(exitJump);
-	compiler->emitByte(OP_POP);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -866,7 +827,7 @@ void Compiler::varDeclaration()
 	defineVariable(global);
 }
 
-static void statement()
+void Compiler::statement()
 {
 	if (parser.match(TokenType::Print)) {
 		printStatement();
@@ -875,16 +836,58 @@ static void statement()
 	} else if (parser.match(TokenType::If)) {
 		ifStatement();
 	} else if (parser.match(TokenType::Return)) {
-		returnStatement(clox::current);
+		returnStatement();
 	} else if (parser.match(TokenType::While)) {
-		whileStatement(clox::current);
+		whileStatement();
 	} else if (parser.match(TokenType::LeftBrace)) {
-		clox::current->beginScope();
+		beginScope();
 		block();
-		clox::current->endScope();
+		endScope();
 	} else {
 		expressionStatement();
 	}
+}
+
+void Compiler::returnStatement()
+{
+	if (type == FunctionType::Script) {
+		parser.error("Cannot return from top-level code.");
+	}
+
+	if (parser.match(TokenType::Semicolon)) {
+		emitReturn();
+	} else {
+		expression(this);
+		parser.consume(TokenType::Semicolon, "Expected ';' after return expression.");
+		emitByte(OP_RETURN);
+	}
+}
+
+// `while` `(` expression `)`
+//    statement
+//
+// Evaluate condition  <-----------------+
+// Skip loop if condition not met--->+   |
+// Pop condition                     |   |
+// Execute the loop                  |   |
+// Jump to condition evaluation ---> | ->+
+// Pop condition <-------------------+
+//
+void Compiler::whileStatement()
+{
+	const int loopStart = chunk()->code.count();
+
+	parser.consume(TokenType::LeftParen, "Expected '(' after while.");
+	expression(this);
+	parser.consume(TokenType::RightParen, "Expected ')' after while condition.");
+
+	const int exitJump = emitJump(OP_JUMP_IF_FALSE);
+	emitByte(OP_POP);
+	statement();
+	emitLoop(loopStart);
+
+	patchJump(exitJump);
+	emitByte(OP_POP);
 }
 
 // Grouping expression like "(expr)".  Assumes the leading "(" has already been
