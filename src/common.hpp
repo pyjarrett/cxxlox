@@ -34,6 +34,10 @@
 	#endif
 #endif
 
+#ifndef CL_BREAKPOINT
+#define CL_BREAKPOINT()
+#endif
+
 #ifdef CL_DEBUG
 	#define CL_ASSERT(expr)      \
 		do {                     \
@@ -49,6 +53,7 @@
 #define CL_UNUSED(expr) (void)(expr)
 #define CL_FATAL(message) \
 	do {                  \
+		CL_BREAKPOINT();  \
 		std::abort();     \
 	} while (0)
 
