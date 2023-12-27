@@ -129,6 +129,8 @@ struct Compiler {
 	void whileStatement();
 	void expressionStatement();
 
+	void block();
+
 	void expression();
 
 	// The parent function in which this compilation instance is occurring.
@@ -495,14 +497,6 @@ void Compiler::namedVariable(Token name, bool canAssign)
 	}
 }
 
-static void block()
-{
-	while (!parser.check(TokenType::Eof) && !parser.check(TokenType::RightBrace)) {
-		clox::current->declaration();
-	}
-	parser.consume(TokenType::RightBrace, "Expected '}' to terminate block.");
-}
-
 // Compile a function.
 static void function(FunctionType type)
 {
@@ -532,7 +526,7 @@ static void function(FunctionType type)
 	parser.consume(TokenType::LeftBrace, "Expected `{` after function parameter list.");
 
 	// Function body
-	block();
+	clox::current->block();
 
 	// Close up the function
 	ObjFunction* fn = clox::current->end();
@@ -787,6 +781,14 @@ void Compiler::expressionStatement()
 	expression();
 	parser.consume(TokenType::Semicolon, "Expected a ';' after expression.");
 	emitByte(OP_POP);
+}
+
+void Compiler::block()
+{
+	while (!parser.check(TokenType::Eof) && !parser.check(TokenType::RightBrace)) {
+		declaration();
+	}
+	parser.consume(TokenType::RightBrace, "Expected '}' to terminate block.");
 }
 
 void Compiler::expression()
