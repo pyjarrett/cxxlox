@@ -114,13 +114,6 @@ static void declaration();
 static void statement();
 static void expression();
 static const ParseRule* getRule(TokenType type);
-static void parsePrecedence(Precedence precedence);
-
-static uint8_t makeConstant(Value value);
-static void emitByte(uint8_t byte);
-static void emitBytes(uint8_t byte1, uint8_t byte2);
-static int emitJump(uint8_t byte);
-static void patchJump(int offset);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Error handling
@@ -215,6 +208,134 @@ static void consume(TokenType type, const char* message)
 	return true;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// State management
+///////////////////////////////////////////////////////////////////////////////
+[[nodiscard]] CL_FORCE_INLINE Chunk* currentChunk()
+{
+	return &current->function->chunk;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Bytecode emission
+///////////////////////////////////////////////////////////////////////////////
+static void emitByte(uint8_t byte)
+{
+	currentChunk()->write(byte, parser.previous.line);
+}
+
+static void emitBytes(uint8_t byte1, uint8_t byte2)
+{
+	emitByte(byte1);
+	emitByte(byte2);
+}
+
+// A backwards jump back to the offset of a loop start.
+static void emitLoop(int loopStart)
+{
+	emitByte(OP_LOOP);
+
+	// 2 to skip over the two offset bytes of the OP_LOOP instruction
+	const int offset = currentChunk()->code.count() - loopStart + 2;
+	if (offset > std::numeric_limits<uint16_t>::max()) {
+		error("Loop body is too large.");
+	}
+
+	emitByte((offset >> 8) & 0xFF);
+	emitByte(offset & 0xFF);
+}
+
+// Emit a jump instruction and then return the offset of the address to jump to
+// so that it can be patched once that location is known.  "Jumps" are only
+// forwards.
+static int emitJump(uint8_t byte)
+{
+	emitByte(byte);
+
+	// Jump addresses are 2 bytes (16 bits).
+	emitByte(0xFF);
+	emitByte(0xFF);
+
+	return currentChunk()->code.count() - 2;
+}
+
+[[nodiscard]] static uint8_t makeConstant(Value value)
+{
+	const int constant = currentChunk()->addConstant(value);
+	if (constant > std::numeric_limits<uint8_t>::max()) {
+		error("Too many constants in one chunk.");
+	}
+	return static_cast<uint8_t>(constant);
+}
+
+static void emitConstant(Value value)
+{
+	emitBytes(OP_CONSTANT, makeConstant(value));
+}
+
+// Patch a jump from the given offset to the next instruction to be emitted.
+static void patchJump(int offset)
+{
+	// The location being jumped from is the
+	const int target = currentChunk()->code.count() - offset - 2;
+
+	CL_ASSERT(target > 0);
+
+	// TODO: This feels weird putting the larger byte in first on little-endian
+	// I'd expect these to be swapped.
+	currentChunk()->code[offset] = (target >> 8) & 0xFF;
+	currentChunk()->code[offset + 1] = target & 0xFF;
+}
+
+static void emitReturn()
+{
+	// Implicitly return nil if no return value is provided.
+	emitByte(OP_NIL);
+	emitByte(OP_RETURN);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Compiler
+///////////////////////////////////////////////////////////////////////////////
+static ObjFunction* endCompiler()
+{
+	emitReturn();
+	ObjFunction* function = current->function;
+#ifdef DEBUG_PRINT_CODE
+	if (!parser.hadError) {
+		disassembleChunk(*currentChunk(), function->name != nullptr ? function->name->chars : "<script>");
+	}
+#endif
+
+	current = current->enclosing;
+	return function;
+}
+
+static void beginScope()
+{
+	++current->scopeDepth;
+}
+
+static void endScope()
+{
+	--current->scopeDepth;
+
+	// Remove variables from the current scope from the top of the stack.
+	// Variables which are captured as upvalues must be saved, but all others
+	// can just be popped.
+	while (current->localCount > 0 && current->locals[current->localCount - 1].depth > current->scopeDepth) {
+		if (current->locals[current->localCount - 1].captured) {
+			emitByte(OP_CLOSE_UPVALUE);
+		} else {
+			emitByte(OP_POP);
+		}
+		--current->localCount;
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Parsing
+///////////////////////////////////////////////////////////////////////////////
 static void parsePrecedence(Precedence precedence)
 {
 	// Read the token for the rule we want to act on.
@@ -463,131 +584,6 @@ static void orOperator(bool canAssign)
 	patchJump(endJump);
 
 	// Leave either lhs or rhs on stack
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// State management
-///////////////////////////////////////////////////////////////////////////////
-[[nodiscard]] CL_FORCE_INLINE Chunk* currentChunk()
-{
-	return &current->function->chunk;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Bytecode emission
-///////////////////////////////////////////////////////////////////////////////
-static void emitByte(uint8_t byte)
-{
-	currentChunk()->write(byte, parser.previous.line);
-}
-
-static void emitBytes(uint8_t byte1, uint8_t byte2)
-{
-	emitByte(byte1);
-	emitByte(byte2);
-}
-
-// A backwards jump back to the offset of a loop start.
-static void emitLoop(int loopStart)
-{
-	emitByte(OP_LOOP);
-
-	// 2 to skip over the two offset bytes of the OP_LOOP instruction
-	const int offset = currentChunk()->code.count() - loopStart + 2;
-	if (offset > std::numeric_limits<uint16_t>::max()) {
-		error("Loop body is too large.");
-	}
-
-	emitByte((offset >> 8) & 0xFF);
-	emitByte(offset & 0xFF);
-}
-
-// Emit a jump instruction and then return the offset of the address to jump to
-// so that it can be patched once that location is known.  "Jumps" are only
-// forwards.
-static int emitJump(uint8_t byte)
-{
-	emitByte(byte);
-
-	// Jump addresses are 2 bytes (16 bits).
-	emitByte(0xFF);
-	emitByte(0xFF);
-
-	return currentChunk()->code.count() - 2;
-}
-
-[[nodiscard]] static uint8_t makeConstant(Value value)
-{
-	const int constant = currentChunk()->addConstant(value);
-	if (constant > std::numeric_limits<uint8_t>::max()) {
-		error("Too many constants in one chunk.");
-	}
-	return static_cast<uint8_t>(constant);
-}
-
-static void emitConstant(Value value)
-{
-	emitBytes(OP_CONSTANT, makeConstant(value));
-}
-
-// Patch a jump from the given offset to the next instruction to be emitted.
-static void patchJump(int offset)
-{
-	// The location being jumped from is the
-	const int target = currentChunk()->code.count() - offset - 2;
-
-	CL_ASSERT(target > 0);
-
-	// TODO: This feels weird putting the larger byte in first on little-endian
-	// I'd expect these to be swapped.
-	currentChunk()->code[offset] = (target >> 8) & 0xFF;
-	currentChunk()->code[offset + 1] = target & 0xFF;
-}
-
-static void emitReturn()
-{
-	// Implicitly return nil if no return value is provided.
-	emitByte(OP_NIL);
-	emitByte(OP_RETURN);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Compiler helpers
-///////////////////////////////////////////////////////////////////////////////
-static ObjFunction* endCompiler()
-{
-	emitReturn();
-	ObjFunction* function = current->function;
-#ifdef DEBUG_PRINT_CODE
-	if (!parser.hadError) {
-		disassembleChunk(*currentChunk(), function->name != nullptr ? function->name->chars : "<script>");
-	}
-#endif
-
-	current = current->enclosing;
-	return function;
-}
-
-static void beginScope()
-{
-	++current->scopeDepth;
-}
-
-static void endScope()
-{
-	--current->scopeDepth;
-
-	// Remove variables from the current scope from the top of the stack.
-	// Variables which are captured as upvalues must be saved, but all others
-	// can just be popped.
-	while (current->localCount > 0 && current->locals[current->localCount - 1].depth > current->scopeDepth) {
-		if (current->locals[current->localCount - 1].captured) {
-			emitByte(OP_CLOSE_UPVALUE);
-		} else {
-			emitByte(OP_POP);
-		}
-		--current->localCount;
-	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1131,6 +1127,9 @@ static const ParseRule* getRule(TokenType type)
 	return rules[type];
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// External interface.
+///////////////////////////////////////////////////////////////////////////////
 ObjFunction* compile(const std::string& source)
 {
 	// FIXME: This is very unsafe.
