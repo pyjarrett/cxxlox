@@ -129,6 +129,8 @@ struct Compiler {
 	void whileStatement();
 	void expressionStatement();
 
+	void expression();
+
 	// The parent function in which this compilation instance is occurring.
 	Compiler* enclosing = nullptr;
 
@@ -150,7 +152,6 @@ struct Compiler {
 ///////////////////////////////////////////////////////////////////////////////
 // Forward declarations
 ///////////////////////////////////////////////////////////////////////////////
-static void expression(Compiler* compiler);
 static const ParseRule* getRule(TokenType type);
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -417,7 +418,7 @@ static uint8_t argumentList(Compiler* compiler)
 	uint8_t argCount = 0;
 	if (!parser.check(TokenType::RightParen)) {
 		do {
-			expression(compiler);
+			compiler->expression();
 			if (argCount == 255) {
 				parser.error("Can't have more than 255 arguments.");
 			}
@@ -487,7 +488,7 @@ void Compiler::namedVariable(Token name, bool canAssign)
 	CL_ASSERT(arg >= 0 && arg <= std::numeric_limits<uint8_t>::max());
 
 	if (canAssign && parser.match(TokenType::Equal)) {
-		expression(clox::current);
+		expression();
 		emitBytes(setOp, static_cast<uint8_t>(arg));
 	} else {
 		emitBytes(getOp, static_cast<uint8_t>(arg));
@@ -595,11 +596,6 @@ static void call(Compiler* compiler, bool canAssign)
 	compiler->emitBytes(OP_CALL, argCount);
 }
 
-static void expression(Compiler* compiler)
-{
-	parsePrecedence(compiler, PREC_ASSIGNMENT);
-}
-
 static void block()
 {
 	while (!parser.check(TokenType::Eof) && !parser.check(TokenType::RightBrace)) {
@@ -696,7 +692,7 @@ void Compiler::varDeclaration()
 {
 	const uint8_t global = parseVariable("Expected a variable name.");
 	if (parser.match(TokenType::Equal)) {
-		expression(clox::current);
+		expression();
 	} else {
 		emitByte(OP_NIL);
 	}
@@ -729,7 +725,7 @@ void Compiler::statement()
 // Parse a print statement, assuming the previous token is "print".
 void Compiler::printStatement()
 {
-	expression(this);
+	expression();
 	parser.consume(TokenType::Semicolon, "Expected a ';' after print statement.");
 	emitByte(OP_PRINT);
 }
@@ -777,7 +773,7 @@ void Compiler::forStatement()
 	int loopStart = chunk()->code.count();
 	int exitJump = -1;
 	if (!parser.match(TokenType::Semicolon)) {
-		expression(clox::current);
+		expression();
 		parser.consume(TokenType::Semicolon, "Expected ';' after condition.");
 		exitJump = emitJump(OP_JUMP_IF_FALSE);
 		emitByte(OP_POP);
@@ -788,7 +784,7 @@ void Compiler::forStatement()
 		// Skip increment on initial loop pass.
 		const int bodyJump = emitJump(OP_JUMP);
 		const int increment = chunk()->code.count();
-		expression(clox::current);
+		expression();
 		emitByte(OP_POP);
 		parser.consume(TokenType::RightParen, "Expected ')' after `for` clauses.");
 
@@ -832,7 +828,7 @@ void Compiler::ifStatement()
 {
 	// Starts immediately after `if`.
 	parser.consume(TokenType::LeftParen, "Expected a '(' after `if`.");
-	expression(clox::current);
+	expression();
 	parser.consume(TokenType::RightParen, "Expected a ')' after `if` condition.");
 
 	const int thenJump = emitJump(OP_JUMP_IF_FALSE);
@@ -859,7 +855,7 @@ void Compiler::returnStatement()
 	if (parser.match(TokenType::Semicolon)) {
 		emitReturn();
 	} else {
-		expression(this);
+		expression();
 		parser.consume(TokenType::Semicolon, "Expected ';' after return expression.");
 		emitByte(OP_RETURN);
 	}
@@ -880,7 +876,7 @@ void Compiler::whileStatement()
 	const int loopStart = chunk()->code.count();
 
 	parser.consume(TokenType::LeftParen, "Expected '(' after while.");
-	expression(this);
+	expression();
 	parser.consume(TokenType::RightParen, "Expected ')' after while condition.");
 
 	const int exitJump = emitJump(OP_JUMP_IF_FALSE);
@@ -894,16 +890,21 @@ void Compiler::whileStatement()
 
 void Compiler::expressionStatement()
 {
-	expression(this);
+	expression();
 	parser.consume(TokenType::Semicolon, "Expected a ';' after expression.");
 	emitByte(OP_POP);
+}
+
+void Compiler::expression()
+{
+	parsePrecedence(this, PREC_ASSIGNMENT);
 }
 
 // Grouping expression like "(expr)".  Assumes the leading "(" has already been
 // encountered.
 static void grouping(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
-	expression(compiler);
+	compiler->expression();
 	parser.consume(TokenType::RightParen, "Expected ')' after expression.");
 }
 
