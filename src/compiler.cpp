@@ -91,6 +91,7 @@ struct Compiler {
 	[[nodiscard]] Chunk* chunk() { return &function->chunk; }
 
 	[[nodiscard]] uint8_t makeConstant(Value value);
+	[[nodiscard]] uint8_t identifierConstant(Token* name);
 
 	////////////////////////////////////////////////////////////////////////////
 	// Bytecode emission
@@ -139,6 +140,11 @@ uint8_t Compiler::makeConstant(Value value)
 		parser.error("Too many constants in one chunk.");
 	}
 	return static_cast<uint8_t>(constant);
+}
+
+[[nodiscard]] uint8_t Compiler::identifierConstant(Token* name)
+{
+	return makeConstant(Value::makeObj(copyString(name->start, name->length)->asObj()));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -252,11 +258,6 @@ static void parsePrecedence(Precedence precedence)
 	if (canAssign && parser.match(TokenType::Equal)) {
 		parser.error("Invalid assignment target.");
 	}
-}
-
-[[nodiscard]] static uint8_t identifierConstant(Token* name)
-{
-	return current->makeConstant(Value::makeObj(copyString(name->start, name->length)->asObj()));
 }
 
 [[nodiscard]] static bool identifiersEqual(Token* a, Token* b)
@@ -429,7 +430,7 @@ static uint8_t argumentList()
 		return 0;
 	}
 
-	return identifierConstant(&parser.previous);
+	return current->identifierConstant(&parser.previous);
 }
 
 // Marks the top variable as initialized.
@@ -909,7 +910,7 @@ static void namedVariable(Token name, bool canAssign)
 		setOp = OP_SET_UPVALUE;
 	} else {
 		// Global
-		arg = identifierConstant(&name);
+		arg = current->identifierConstant(&name);
 		getOp = OP_GET_GLOBAL;
 		setOp = OP_SET_GLOBAL;
 	}
