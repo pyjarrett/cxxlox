@@ -114,6 +114,13 @@ struct Compiler {
 	void emitReturn();
 	void patchJump(int offset);
 
+	////////////////////////////////////////////////////////////////////////////
+	// Syntactical functions
+	////////////////////////////////////////////////////////////////////////////
+	void declaration();
+	void functionDeclaration();
+	void varDeclaration();
+
 	// The parent function in which this compilation instance is occurring.
 	Compiler* enclosing = nullptr;
 
@@ -135,7 +142,6 @@ struct Compiler {
 ///////////////////////////////////////////////////////////////////////////////
 // Forward declarations
 ///////////////////////////////////////////////////////////////////////////////
-static void declaration();
 static void statement();
 static void expression(Compiler* compiler);
 static const ParseRule* getRule(TokenType type);
@@ -590,7 +596,7 @@ static void expression(Compiler* compiler)
 static void block()
 {
 	while (!parser.check(TokenType::Eof) && !parser.check(TokenType::RightBrace)) {
-		declaration();
+		clox::current->declaration();
 	}
 	parser.consume(TokenType::RightBrace, "Expected '}' to terminate block.");
 }
@@ -647,28 +653,6 @@ static void function(FunctionType type)
 	// program is terminating if it's the outermost script level.
 }
 
-static void functionDeclaration()
-{
-	const uint8_t global = clox::current->parseVariable("Expected a function name.");
-	clox::current->markInitialized();
-
-	// This isn't part of a top level script.
-	function(FunctionType::Function);
-	clox::current->defineVariable(global);
-}
-
-static void varDeclaration()
-{
-	const uint8_t global = clox::current->parseVariable("Expected a variable name.");
-	if (parser.match(TokenType::Equal)) {
-		expression(clox::current);
-	} else {
-		clox::current->emitByte(OP_NIL);
-	}
-	parser.consume(TokenType::Semicolon, "Expected a ';' after a variable declaration.");
-	clox::current->defineVariable(global);
-}
-
 // Parse a print statement, assuming the previous token is "print".
 static void printStatement()
 {
@@ -716,7 +700,7 @@ static void forStatement()
 
 	// Variable declaration and/or initializer
 	if (parser.match(TokenType::Var)) {
-		varDeclaration();
+		clox::current->varDeclaration();
 	} else if (parser.match(TokenType::Semicolon)) {
 		// No initializer.
 	} else {
@@ -840,7 +824,10 @@ static void whileStatement(Compiler* compiler)
 	compiler->emitByte(OP_POP);
 }
 
-static void declaration()
+////////////////////////////////////////////////////////////////////////////////
+// Syntactical functions
+////////////////////////////////////////////////////////////////////////////////
+void Compiler::declaration()
 {
 	if (parser.match(TokenType::Fun)) {
 		functionDeclaration();
@@ -855,6 +842,28 @@ static void declaration()
 	if (parser.panicMode) {
 		parser.synchronize();
 	}
+}
+
+void Compiler::functionDeclaration()
+{
+	const uint8_t global = parseVariable("Expected a function name.");
+	markInitialized();
+
+	// This isn't part of a top level script.
+	cxxlox::function(FunctionType::Function);
+	defineVariable(global);
+}
+
+void Compiler::varDeclaration()
+{
+	const uint8_t global = parseVariable("Expected a variable name.");
+	if (parser.match(TokenType::Equal)) {
+		expression(clox::current);
+	} else {
+		emitByte(OP_NIL);
+	}
+	parser.consume(TokenType::Semicolon, "Expected a ';' after a variable declaration.");
+	defineVariable(global);
 }
 
 static void statement()
@@ -1023,7 +1032,7 @@ ObjFunction* compile(const std::string& source)
 	parser.advance();
 
 	while (!parser.match(TokenType::Eof)) {
-		declaration();
+		clox::current->declaration();
 	}
 	parser.consume(TokenType::Eof, "Expected end of expression.");
 	ObjFunction* function = clox::current->end();
