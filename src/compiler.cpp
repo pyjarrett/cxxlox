@@ -122,6 +122,9 @@ struct Compiler {
 	void varDeclaration();
 
 	void statement();
+	void printStatement();
+	void forStatement();
+	void ifStatement();
 	void returnStatement();
 	void whileStatement();
 
@@ -656,133 +659,12 @@ static void function(FunctionType type)
 	// program is terminating if it's the outermost script level.
 }
 
-// Parse a print statement, assuming the previous token is "print".
-static void printStatement()
-{
-	expression(clox::current);
-	parser.consume(TokenType::Semicolon, "Expected a ';' after print statement.");
-	clox::current->emitByte(OP_PRINT);
-}
 
 static void expressionStatement()
 {
 	expression(clox::current);
 	parser.consume(TokenType::Semicolon, "Expected a ';' after expression.");
 	clox::current->emitByte(OP_POP);
-}
-
-// Outputs the increment step before the loop body due to limitations of being
-// as single-pass compiler -- it can't hold onto the increment step and output
-// it later, like it could if it could keep it in an AST.
-//
-// `for` `(` initializer? `;` condition? `;` increment `)`
-//     statement
-//
-// Begin scope (if initializer present)
-// Create variable from declaration (if present)
-// Run initializer (if present)
-// Push condition <---------------------+
-// Exit loop if false ----------------- | ----->+
-// Pop condition                        |       |
-//                                      |       |
-// Body jump (if increment)-->+         |       |
-//                            |         |       |
-// Increment (if present)<--- | ----+   |       |
-// Pop increment result       |     |   |       |
-// Jump to condition check -------- | --+       |
-//                            |     |           |
-// Statement <----------------+     |           |
-// Jump to increment -------------->+           |
-// Pop condition <------------------------------+
-// End scope (if initializer present)
-//
-static void forStatement()
-{
-	clox::current->beginScope();
-	parser.consume(TokenType::LeftParen, "Expected '(' after `for`.");
-
-	// Variable declaration and/or initializer
-	if (parser.match(TokenType::Var)) {
-		clox::current->varDeclaration();
-	} else if (parser.match(TokenType::Semicolon)) {
-		// No initializer.
-	} else {
-		expressionStatement();
-	}
-
-	// Condition
-	int loopStart = clox::current->chunk()->code.count();
-	int exitJump = -1;
-	if (!parser.match(TokenType::Semicolon)) {
-		expression(clox::current);
-		parser.consume(TokenType::Semicolon, "Expected ';' after condition.");
-		exitJump = clox::current->emitJump(OP_JUMP_IF_FALSE);
-		clox::current->emitByte(OP_POP);
-	}
-
-	// Increment
-	if (!parser.match(TokenType::RightParen)) {
-		// Skip increment on initial loop pass.
-		const int bodyJump = clox::current->emitJump(OP_JUMP);
-		const int increment = clox::current->chunk()->code.count();
-		expression(clox::current);
-		clox::current->emitByte(OP_POP);
-		parser.consume(TokenType::RightParen, "Expected ')' after `for` clauses.");
-
-		// Start the next loop.
-		clox::current->emitLoop(loopStart);
-
-		// The body should jump to the increment only if there is one.
-		loopStart = increment;
-		clox::current->patchJump(bodyJump);
-	}
-
-	clox::current->statement();
-	clox::current->emitLoop(loopStart);
-
-	if (exitJump != -1) {
-		clox::current->patchJump(exitJump);
-
-		// Pop the condition.
-		clox::current->emitByte(OP_POP);
-	}
-	clox::current->endScope();
-}
-
-// `if` <*> `(` condition `)`
-//     statement
-// `else`
-//     statement
-//
-// Push condition onto stack
-// Conditional jump if false ------->+
-// Pop condition                     |
-// Then statement                    |
-// Jump over else branch ---->+      |
-// <------------------------- | -----+
-// Pop condition              |
-// Else statements            |
-// <--------------------------+
-//
-static void ifStatement()
-{
-	// Starts immediately after `if`.
-	parser.consume(TokenType::LeftParen, "Expected a '(' after `if`.");
-	expression(clox::current);
-	parser.consume(TokenType::RightParen, "Expected a ')' after `if` condition.");
-
-	const int thenJump = clox::current->emitJump(OP_JUMP_IF_FALSE);
-	clox::current->emitByte(OP_POP);
-	clox::current->statement();
-
-	const int elseJump = clox::current->emitJump(OP_JUMP);
-	clox::current->patchJump(thenJump);
-	clox::current->emitByte(OP_POP);
-
-	if (parser.match(TokenType::Else)) {
-		clox::current->statement();
-	}
-	clox::current->patchJump(elseJump);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -847,6 +729,131 @@ void Compiler::statement()
 		expressionStatement();
 	}
 }
+
+
+// Parse a print statement, assuming the previous token is "print".
+void Compiler::printStatement()
+{
+	expression(this);
+	parser.consume(TokenType::Semicolon, "Expected a ';' after print statement.");
+	emitByte(OP_PRINT);
+}
+
+// Outputs the increment step before the loop body due to limitations of being
+// as single-pass compiler -- it can't hold onto the increment step and output
+// it later, like it could if it could keep it in an AST.
+//
+// `for` `(` initializer? `;` condition? `;` increment `)`
+//     statement
+//
+// Begin scope (if initializer present)
+// Create variable from declaration (if present)
+// Run initializer (if present)
+// Push condition <---------------------+
+// Exit loop if false ----------------- | ----->+
+// Pop condition                        |       |
+//                                      |       |
+// Body jump (if increment)-->+         |       |
+//                            |         |       |
+// Increment (if present)<--- | ----+   |       |
+// Pop increment result       |     |   |       |
+// Jump to condition check -------- | --+       |
+//                            |     |           |
+// Statement <----------------+     |           |
+// Jump to increment -------------->+           |
+// Pop condition <------------------------------+
+// End scope (if initializer present)
+//
+void Compiler::forStatement()
+{
+	beginScope();
+	parser.consume(TokenType::LeftParen, "Expected '(' after `for`.");
+
+	// Variable declaration and/or initializer
+	if (parser.match(TokenType::Var)) {
+		varDeclaration();
+	} else if (parser.match(TokenType::Semicolon)) {
+		// No initializer.
+	} else {
+		expressionStatement();
+	}
+
+	// Condition
+	int loopStart = chunk()->code.count();
+	int exitJump = -1;
+	if (!parser.match(TokenType::Semicolon)) {
+		expression(clox::current);
+		parser.consume(TokenType::Semicolon, "Expected ';' after condition.");
+		exitJump = emitJump(OP_JUMP_IF_FALSE);
+		emitByte(OP_POP);
+	}
+
+	// Increment
+	if (!parser.match(TokenType::RightParen)) {
+		// Skip increment on initial loop pass.
+		const int bodyJump = emitJump(OP_JUMP);
+		const int increment = chunk()->code.count();
+		expression(clox::current);
+		emitByte(OP_POP);
+		parser.consume(TokenType::RightParen, "Expected ')' after `for` clauses.");
+
+		// Start the next loop.
+		emitLoop(loopStart);
+
+		// The body should jump to the increment only if there is one.
+		loopStart = increment;
+		patchJump(bodyJump);
+	}
+
+	statement();
+	emitLoop(loopStart);
+
+	if (exitJump != -1) {
+		patchJump(exitJump);
+
+		// Pop the condition.
+		emitByte(OP_POP);
+	}
+	endScope();
+}
+
+
+// `if` <*> `(` condition `)`
+//     statement
+// `else`
+//     statement
+//
+// Push condition onto stack
+// Conditional jump if false ------->+
+// Pop condition                     |
+// Then statement                    |
+// Jump over else branch ---->+      |
+// <------------------------- | -----+
+// Pop condition              |
+// Else statements            |
+// <--------------------------+
+//
+void Compiler::ifStatement()
+{
+	// Starts immediately after `if`.
+	parser.consume(TokenType::LeftParen, "Expected a '(' after `if`.");
+	expression(clox::current);
+	parser.consume(TokenType::RightParen, "Expected a ')' after `if` condition.");
+
+	const int thenJump = emitJump(OP_JUMP_IF_FALSE);
+	emitByte(OP_POP);
+	statement();
+
+	const int elseJump = emitJump(OP_JUMP);
+	patchJump(thenJump);
+	emitByte(OP_POP);
+
+	if (parser.match(TokenType::Else)) {
+		statement();
+	}
+	patchJump(elseJump);
+}
+
 
 void Compiler::returnStatement()
 {
