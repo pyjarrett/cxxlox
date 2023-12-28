@@ -52,6 +52,9 @@ enum class FunctionType
 
 // Tracks compilation of the top level and each Lox function.
 struct Compiler {
+	// Deviation: markCompilerRoots()
+	static void markActiveCompilers();
+
 	// Compilers form a stack, with each compiler taking the previously open
 	// one as its enclosing scope.
 	explicit Compiler(Compiler* enclosing, FunctionType type, Parser& parser)
@@ -67,6 +70,9 @@ struct Compiler {
 		local->depth = 0;
 		local->name.start = ""; // So the user can't refer to it.
 		local->name.length = 0;
+
+		CL_ASSERT(s_active == enclosing);
+		s_active = this;
 	}
 
 	// Deviation: was renamed endCompiler()
@@ -144,7 +150,25 @@ struct Compiler {
 	int scopeDepth = 0;
 
 	Upvalue upvalues[kUInt8Count];
+
+	// The currently active compiler.  Keep this inside the Compiler class and
+	// don't have it affect the compilation itself, it's only used for tracking
+	// active compilers for garbage collection.  Only one active chain of
+	// compilers is supported.
+	static Compiler* s_active;
 };
+
+Compiler* Compiler::s_active = nullptr;
+
+///////////////////////////////////////////////////////////////////////////////
+// Garbage collection
+///////////////////////////////////////////////////////////////////////////////
+void markActiveCompilers()
+{
+	for (Compiler* compiler = Compiler::s_active; compiler; compiler = compiler->enclosing) {
+		markObject(compiler->function->asObj());
+	}
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Forward declarations
@@ -246,6 +270,8 @@ ObjFunction* Compiler::end()
 		disassembleChunk(*chunk(), function->name != nullptr ? function->name->chars : "<script>");
 	}
 #endif
+
+	s_active = enclosing;
 
 	return function;
 }

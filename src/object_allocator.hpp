@@ -3,6 +3,7 @@
 #include "memory.hpp"
 #include "object.hpp"
 #include "vm.hpp"
+#include <iostream> // FIXME: Not great to have in this file.
 #include <type_traits>
 
 // This file splits out the allocator because it needs the VM to do the
@@ -27,6 +28,12 @@ T* allocateObj(Args&&... args)
 	T* t = new (location) T(std::forward<Args>(args)...);
 	t->obj.type = typeOf<T>();
 	VM::instance().track(reinterpret_cast<Obj*>(t));
+
+#ifdef DEBUG_LOG_GC
+	std::cout << "Allocate " << std::hex << location << " of " << sizeof(T) << " for " << static_cast<int>(typeOf<T>())
+			  << '\n';
+#endif
+
 	return t;
 }
 } // namespace cxxlox

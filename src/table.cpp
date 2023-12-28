@@ -1,5 +1,6 @@
 #include "table.hpp"
 
+#include "memory.hpp"
 #include "object.hpp"
 
 #include <cstring>
@@ -169,6 +170,14 @@ void Table::print()
 		}
 	}
 	std::cout << "^--- Contains " << count_ << " of " << capacity_ << " with max: " << capacity_ * kMaxLoadFactor << '\n';
+}
+
+void Table::mark()
+{
+	for (int i = 0; i < capacity_; ++i) {
+		markObject(entries_[i].key->asObj());
+		markValue(&entries_[i].value);
+	}
 }
 
 void Table::adjustCapacity()

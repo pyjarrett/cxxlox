@@ -27,7 +27,11 @@ struct ObjUpvalue;
 struct Obj {
 	ObjType type;
 
-	// Intrusive linked list pointer.
+	// Tracks whether this object is marked for the garbage collector.
+	bool marked = false;
+
+	// Intrusive linked list pointer.  Used for tracking objects for the
+	// garbage collector.
 	Obj* next = nullptr;
 
 	// Conversion to overlying types.
@@ -54,20 +58,20 @@ struct ObjFunction {
 
 	ObjFunction(ObjFunction&&) = delete;
 	ObjFunction& operator=(ObjFunction&&) = delete;
+
+	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };
 
-using NativeFunction = Value(*)(int argCount, Value* args);
+using NativeFunction = Value (*)(int argCount, Value* args);
 
 // A function for calling native code.
-struct ObjNative
-{
+struct ObjNative {
 	Obj obj;
 	NativeFunction function = nullptr;
 };
 
 // Wraps an ObjFunction and tracks upvalues.
-struct ObjClosure
-{
+struct ObjClosure {
 	Obj obj;
 
 	// The function underlying this function.  Multiple closures might reference
@@ -79,6 +83,8 @@ struct ObjClosure
 	Array<ObjUpvalue*> upvalues;
 
 	explicit ObjClosure(ObjFunction* fn);
+
+	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };
 
 // Every ObjString owns its own characters.
@@ -121,6 +127,8 @@ struct ObjUpvalue {
 	ObjUpvalue* next = nullptr;
 
 	explicit ObjUpvalue(Value* slot);
+
+	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };
 
 // clang-format off

@@ -1,5 +1,9 @@
 #include "memory.hpp"
 
+#include "object.hpp"
+#include "value.hpp"
+#include <iostream>
+
 namespace cxxlox {
 
 void* realloc(void* pointer, size_t oldSize, size_t newSize)
@@ -17,6 +21,27 @@ void* realloc(void* pointer, size_t oldSize, size_t newSize)
 	}
 
 	return result;
+}
+
+void markValue(Value* value)
+{
+	CL_ASSERT(value);
+	if (value && value->isObj()) {
+		markObject(value->toObj());
+	}
+}
+
+void markObject(Obj* obj)
+{
+	if (obj == nullptr) {
+		return;
+	}
+#ifdef DEBUG_LOG_GC
+	std::cout << std::hex << obj << ' ';
+	printValue(Value::makeObj(obj));
+	std::cout << '\n';
+#endif
+	obj->marked = true;
 }
 
 } // namespace cxxlox

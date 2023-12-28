@@ -72,6 +72,7 @@ struct VM {
 
 	[[nodiscard]] InterpretResult interpret(const std::string& source);
 
+	void garbageCollect();
 	void track(Obj* obj);
 	void intern(ObjString* str);
 	ObjString* lookup(const char* chars, uint32_t length, uint32_t hash) const;
@@ -84,6 +85,8 @@ private:
 
 	void resetStack();
 	void freeObjects();
+
+	void markRoots();
 
 	void loadNativeFunctions();
 

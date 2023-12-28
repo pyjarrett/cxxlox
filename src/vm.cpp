@@ -3,6 +3,7 @@
 #include "chunk.hpp"
 #include "common.hpp"
 #include "compiler.hpp"
+#include "memory.hpp"
 #include "object_allocator.hpp"
 
 #ifdef DEBUG_TRACE_EXECUTION
@@ -10,7 +11,6 @@
 #endif
 
 #include "object.hpp"
-
 #include <chrono>
 #include <format>
 #include <iostream>
@@ -28,6 +28,10 @@ static Value clockNative(int argCount, Value* args)
 
 static void freeObj(Obj* obj)
 {
+#ifdef DEBUG_LOG_GC
+	std::cout << "Freeing " << std::hex << obj << " of type " << static_cast<int>(obj->type) << '\n';
+#endif
+
 	switch (obj->type) {
 		case ObjType::String: {
 			ObjString* str = reinterpret_cast<ObjString*>(obj);
@@ -530,10 +534,43 @@ InterpretResult VM::interpret(const std::string& source)
 	return run();
 }
 
+void VM::garbageCollect()
+{
+#ifdef DEBUG_LOG_GC
+	std::cout << "-- gc start\n";
+#endif
+
+#ifdef DEBUG_LOG_GC
+	std::cout << "-- gc end\n";
+#endif
+}
+
 void VM::track(Obj* obj)
 {
 	obj->next = objects;
 	objects = obj;
+}
+
+void VM::markRoots()
+{
+	// Everything in the stack.
+	for (Value* value = stack; stack < stackTop; value++) {
+		markValue(value);
+	}
+
+	// Mark the closures stored in the stack frames.
+	for (int i =0 ; i <this->frameCount; ++i) {
+		markObject(frames[i].closure->asObj());
+	}
+
+	// Upvalues need to be tracked too.
+	for (ObjUpvalue* upvalue = openUpvalues; upvalue; upvalue = upvalue->next) {
+		markObject(upvalue->asObj());
+	}
+
+	markActiveCompilers();
+
+	globals.mark();
 }
 
 void VM::intern(ObjString* obj)

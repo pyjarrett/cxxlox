@@ -73,9 +73,13 @@
 static constexpr int kUInt8Count = std::numeric_limits<uint8_t>::max() + 1;
 
 // Enable to print code once it is compiled.
-//#define DEBUG_PRINT_CODE
+// #define DEBUG_PRINT_CODE
 // Enable to trace command execution.
-//#define DEBUG_TRACE_EXECUTION
+// #define DEBUG_TRACE_EXECUTION
+
+// Forces GC to occur on every allocation.
+// #define DEBUG_STRESS_GC
+// #define DEBUG_LOG_GC
 
 namespace cxxlox {
 

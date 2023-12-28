@@ -37,6 +37,10 @@ public:
 	void addAll(Table& other);
 
 	void print();
+
+	// Mark objects for garbage collector.
+	void mark();
+
 private:
 	void adjustCapacity();
 	[[nodiscard]] static Entry* findEntry(Entry* entries, int32_t capacity, ObjString* key);
