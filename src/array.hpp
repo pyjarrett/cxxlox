@@ -33,8 +33,8 @@ public:
 	[[nodiscard]] int32_t capacity() const { return capacity_; }
 	[[nodiscard]] int32_t count() const { return count_; }
 
-	const T& operator[](int32_t) const;
-	T& operator[](int32_t);
+	[[nodiscard]] const T& operator[](int32_t) const;
+	[[nodiscard]] T& operator[](int32_t);
 
 private:
 	/// The number of used elements.
