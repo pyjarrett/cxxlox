@@ -2,6 +2,7 @@
 include(GoogleTest)
 
 add_executable(cxxlox_unit_tests
+    array_tests.cpp
     object_tests.cpp
     table_tests.cpp
     vm_tests.cpp
