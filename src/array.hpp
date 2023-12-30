@@ -13,6 +13,8 @@ namespace cxxlox {
 template <typename T, bool TrackWithGC = true>
 class Array
 {
+	static_assert(std::is_trivially_copyable_v<T>, "Array only works with trivial types.");
+
 public:
 	Array() = default;
 	~Array();
@@ -78,7 +80,6 @@ void Array<T, TrackWithGC>::reserve(int32_t newCapacity)
 		// Use the local Lox realloc function.
 		// Realloc copies and frees on its own.
 		larger = reinterpret_cast<T*>(cxxlox::realloc(data, sizeof(T) * capacity_, sizeof(T) * newCapacity));
-		static_assert(std::is_trivially_copyable_v<T>, "Type can't be bit copied.  Cannot track associated type with garbage collected array.");
 	} else {
 		larger = new T[newCapacity];
 		std::copy(data, data + count_, larger);
