@@ -36,4 +36,13 @@ T* allocateObj(Args&&... args)
 
 	return t;
 }
+
+template <typename T>
+void freeObj(Obj* obj)
+{
+	T* t = reinterpret_cast<T*>(obj);
+	t->~T();
+	CL_UNUSED(realloc((void*)obj, sizeof(T), 0));
+}
+
 } // namespace cxxlox

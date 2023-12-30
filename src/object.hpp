@@ -84,6 +84,7 @@ struct ObjClosure {
 	Vector<ObjUpvalue*> upvalues;
 
 	explicit ObjClosure(ObjFunction* fn);
+	~ObjClosure() = default;
 
 	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };
@@ -128,6 +129,7 @@ struct ObjUpvalue {
 	ObjUpvalue* next = nullptr;
 
 	explicit ObjUpvalue(Value* slot);
+	~ObjUpvalue() = default;
 
 	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };

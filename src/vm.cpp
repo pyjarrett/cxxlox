@@ -34,24 +34,19 @@ static void freeObj(Obj* obj)
 
 	switch (obj->type) {
 		case ObjType::String: {
-			ObjString* str = reinterpret_cast<ObjString*>(obj);
-			delete str;
+			freeObj<ObjString>(obj);
 		} break;
 		case ObjType::Closure: {
-			ObjClosure* closure = reinterpret_cast<ObjClosure*>(obj);
-			delete closure;
+			freeObj<ObjClosure>(obj);
 		} break;
 		case ObjType::Function: {
-			ObjFunction* fn = reinterpret_cast<ObjFunction*>(obj);
-			delete fn;
+			freeObj<ObjFunction>(obj);
 		} break;
 		case ObjType::Native: {
-			ObjNative* fn = reinterpret_cast<ObjNative*>(obj);
-			delete fn;
+			freeObj<ObjNative>(obj);
 		} break;
 		case ObjType::Upvalue: {
-			ObjUpvalue* upvalue = reinterpret_cast<ObjUpvalue*>(obj);
-			delete upvalue;
+			freeObj<ObjUpvalue>(obj);
 		} break;
 		default:
 			CL_FATAL("Unknown object type.");
