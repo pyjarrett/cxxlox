@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib> // for std::abort()
+#include <iostream>
 #include <limits>
 
 // Compiler identification
@@ -35,7 +36,7 @@
 #endif
 
 #ifndef CL_BREAKPOINT
-#define CL_BREAKPOINT()
+	#define CL_BREAKPOINT()
 #endif
 
 #ifdef CL_DEBUG
@@ -51,10 +52,11 @@
 #endif
 
 #define CL_UNUSED(expr) (void)(expr)
-#define CL_FATAL(message) \
-	do {                  \
-		CL_BREAKPOINT();  \
-		std::abort();     \
+#define CL_FATAL(message)                                \
+	do {                                                 \
+		std::cout << "FATAL ERROR: " message << std::endl; \
+		CL_BREAKPOINT();                                 \
+		std::abort();                                    \
 	} while (0)
 
 // A macro to be more forceful with the compiler on inlining, since
