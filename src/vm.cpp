@@ -269,6 +269,7 @@ void VM::freeObjects()
 		freeObj(obj);
 		obj = next;
 	}
+	grayStack.clear();
 }
 
 void VM::loadNativeFunctions()
@@ -540,6 +541,10 @@ void VM::garbageCollect()
 	std::cout << "-- gc start\n";
 #endif
 
+	markRoots();
+	traceReferences();
+	sweep();
+
 #ifdef DEBUG_LOG_GC
 	std::cout << "-- gc end\n";
 #endif
@@ -571,6 +576,45 @@ void VM::markRoots()
 	markActiveCompilers();
 
 	globals.mark();
+}
+
+// Expand outward from the roots to trace and find all referenced objects.
+void VM::traceReferences()
+{
+	while (grayStack.count() > 0) {
+		Obj* obj = grayStack.pop();
+		blackenObj(obj);
+	}
+}
+
+// Garbage collection pass.
+void VM::sweep()
+{
+	Obj* previous = nullptr;
+	Obj* current = objects;
+	while (current != nullptr) {
+		if (current->isMarked) {
+			// Reset status and move along.
+			current->isMarked = false;
+			previous = current;
+			current = current->next;
+		}
+		else {
+			// Wasn't referenced (white node), so remove.
+			Obj* garbage = current;
+			current = current->next;
+
+			if (previous) {
+				// Interior or tail node.
+				previous->next = current;
+			}
+			else {
+				// Reattach list head.
+				objects = current;
+			}
+			freeObj(garbage);
+		}
+	}
 }
 
 void VM::intern(ObjString* obj)

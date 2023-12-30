@@ -4,6 +4,8 @@
 #include "object.hpp"
 #include "table.hpp"
 #include "value.hpp"
+#include "vector.hpp"
+
 #include <string>
 
 namespace cxxlox {
@@ -77,6 +79,8 @@ struct VM {
 	void intern(ObjString* str);
 	ObjString* lookup(const char* chars, uint32_t length, uint32_t hash) const;
 
+	Vector<Obj*, false> grayStack;
+
 private:
 	VM();
 	~VM();
@@ -86,7 +90,10 @@ private:
 	void resetStack();
 	void freeObjects();
 
+	// Garbage collection.
 	void markRoots();
+	void traceReferences();
+	void sweep();
 
 	void loadNativeFunctions();
 

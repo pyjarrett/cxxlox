@@ -28,7 +28,7 @@ struct Obj {
 	ObjType type;
 
 	// Tracks whether this object is marked for the garbage collector.
-	bool marked = false;
+	bool isMarked = false;
 
 	// Intrusive linked list pointer.  Used for tracking objects for the
 	// garbage collector.

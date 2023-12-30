@@ -18,4 +18,6 @@ struct Value;
 void markValue(Value* value);
 void markObject(Obj* obj);
 
-}
+void blackenObj(Obj* obj);
+
+} // namespace cxxlox
