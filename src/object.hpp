@@ -38,6 +38,7 @@ struct Obj {
 	[[nodiscard]] ObjString* toString();
 	[[nodiscard]] ObjFunction* toFunction();
 	[[nodiscard]] ObjClosure* toClosure();
+	[[nodiscard]] ObjUpvalue* toUpvalue();
 	[[nodiscard]] ObjNative* toNative();
 };
 

@@ -25,6 +25,12 @@ ObjClosure* Obj::toClosure()
 	return reinterpret_cast<ObjClosure*>(this);
 }
 
+ObjUpvalue* Obj::toUpvalue()
+{
+	CL_ASSERT(type == ObjType::Upvalue);
+	return reinterpret_cast<ObjUpvalue*>(this);
+}
+
 ObjNative* Obj::toNative()
 {
 	CL_ASSERT(type == ObjType::Native);
