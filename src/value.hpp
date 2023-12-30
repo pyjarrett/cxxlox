@@ -23,7 +23,7 @@ struct ObjString;
 
 // Could be done with std::variant.
 struct Value {
-	ValueType type;
+	ValueType type = ValueType::Nil;
 	union
 	{
 		bool boolean;
