@@ -30,9 +30,7 @@ static void freeObj(Obj* obj)
 {
 #ifdef DEBUG_LOG_GC
 	std::cout << "Freeing " << std::hex << obj << " of type " << objTypeToString(obj->type) << '\n';
-	std::cout << "    -> ";
-	printObj(obj);
-	std::cout << '\n';
+	std::cout << "    -> " << obj << '\n';
 #endif
 
 	switch (obj->type) {
@@ -327,8 +325,7 @@ InterpretResult VM::run()
 		{
 			std::cout << "             [*]";
 			for (Value* slot = stack; slot != stackTop; ++slot) {
-				std::cout << " : ";
-				printValue(*slot);
+				std::cout << " : " << (*slot);
 			}
 			std::cout << " [top]\n";
 			Chunk& chunk = currentFrame()->closure->function->chunk;
@@ -431,8 +428,7 @@ InterpretResult VM::run()
 				push(Value::makeNumber(-pop().toNumber()));
 				break;
 			case OP_PRINT:
-				printValue(pop());
-				std::cout << '\n';
+				std::cout << pop() << '\n';
 				break;
 			case OP_POP:
 				CL_UNUSED(pop());

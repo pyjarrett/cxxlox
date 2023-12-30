@@ -2,6 +2,8 @@
 
 #include "common.hpp"
 
+#include <iosfwd>
+
 namespace cxxlox {
 
 enum class ValueType
@@ -56,6 +58,6 @@ struct Value {
 	[[nodiscard]] bool operator==(const Value& rhs) const;
 };
 
-void printValue(Value v);
+std::ostream& operator<<(std::ostream& out, Value value);
 
 } // namespace cxxlox

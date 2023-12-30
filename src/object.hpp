@@ -4,6 +4,8 @@
 #include "common.hpp"
 #include "value.hpp"
 
+#include <iosfwd>
+
 namespace cxxlox {
 
 // Deviation: was OBJ_CLOSURE, OBJ_FUNCTION, OBJ_STRING
@@ -145,7 +147,7 @@ template <> constexpr ObjType typeOf<ObjUpvalue>() { return ObjType::Upvalue; }
 // clang-format on
 
 [[nodiscard]] const char* objTypeToString(ObjType type);
-void printObj(Obj* obj);
+std::ostream& operator<<(std::ostream& out, Obj* obj);
 
 [[nodiscard]] bool isObjType(Value value, ObjType type);
 

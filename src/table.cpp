@@ -155,11 +155,8 @@ void Table::print()
 				std::cout << "<<>>\n";
 			}
 			else {
-				std::cout << std::format("[{:6}] ", i);
-				printObj(entry->key->asObj());
-				std::cout << " ";
-				printValue(entry->value);
-				std::cout << '\n';
+				std::cout << std::format("[{:6}] ", i) << entry->key->asObj();
+				std::cout << " " << entry->value << '\n';
 			}
 		}
 	}

@@ -60,22 +60,22 @@ ObjUpvalue::ObjUpvalue(cxxlox::Value* slot)
 	location = slot;
 }
 
-static void printFunction(ObjFunction* fn) {
+static std::ostream& operator<<(std::ostream& out, ObjFunction* fn)
+{
 	if (fn->name == nullptr) {
 		// Top level function
-		std::cout << "<script>";
-	}
-	else {
-		std::cout << "<fn " << fn->name->chars << '>';
+		out << "<script>";
+	} else {
+		out << "<fn " << fn->name->chars << '>';
 	}
 
 	// Deviation: Show arity and number of upvalues.
-	std::cout << "(" << fn->arity;
-
+	out << "(" << fn->arity;
 	if (fn->upvalueCount > 0) {
-		std::cout << ", ^" << fn->upvalueCount;
+		out << ", ^" << fn->upvalueCount;
 	}
-	std::cout << ") ";
+	out << ") ";
+	return out;
 }
 
 const char* objTypeToString(ObjType type)
@@ -90,26 +90,27 @@ const char* objTypeToString(ObjType type)
 	}
 }
 
-void printObj(Obj* obj)
+std::ostream& operator<<(std::ostream& out, Obj* obj)
 {
 	switch (obj->type) {
-		case ObjType::Function: {
-			printFunction(obj->toFunction());
-		} break;
-		case ObjType::Closure: {
-			printFunction(obj->toClosure()->function);
-		} break;
-		case ObjType::Native: {
-			std::cout << "<native fn>";
-		} break;
+		case ObjType::Function:
+			out << obj->toFunction();
+			break;
+		case ObjType::Closure:
+			out << obj->toClosure()->function;
+			break;
+		case ObjType::Native:
+			out << "<native fn>";
+			break;
 		case ObjType::String: {
 			ObjString* str = reinterpret_cast<ObjString*>(obj);
-			std::cout << str->chars;
+			out << str->chars;
 		} break;
 		case ObjType::Upvalue:
-			std::cout << "upvalue";
+			out << "upvalue";
 			break;
 	}
+	return out;
 }
 
 bool isObjType(Value value, ObjType type)

@@ -21,9 +21,7 @@ void disassembleChunk(const Chunk& chunk, const char* name)
 	if (chunk.constants.count() > 0) {
 		std::cout << "  << CONSTANTS >> \n";
 		for (int32_t i = 0; i < chunk.constants.count(); ++i) {
-			std::cout << std::format("{:5} ", i);
-			printValue(chunk.constants[i]);
-			std::cout << '\n';
+			std::cout << std::format("{:5} ", i) << chunk.constants[i] << '\n';
 		}
 		std::cout << '\n';
 	}
@@ -42,8 +40,7 @@ void disassembleChunk(const Chunk& chunk, const char* name)
 	// [OP_CONSTANT] [constant_index]
 	const auto constantIndex = chunk.code[offset + 1];
 	std::cout << std::format("{:<16} {:4} '", name, constantIndex);
-	printValue(chunk.constants[constantIndex]);
-	std::cout << "'\n";
+	std::cout << chunk.constants[constantIndex] << "'\n";
 
 	// Skip the instruction (byte 1) and the constant (byte 2).
 	return offset + 2;
@@ -77,8 +74,7 @@ void disassembleChunk(const Chunk& chunk, const char* name)
 	// Closure location in the constants table.
 	const uint8_t closureConstantIndex = chunk.code[offset++];
 	std::cout << std::format("{:<16} {:4} ", "OP_CLOSURE", closureConstantIndex);
-	printValue(chunk.constants[closureConstantIndex]);
-	std::cout << '\n';
+	std::cout << chunk.constants[closureConstantIndex] << '\n';
 
 	// OP_CLOSURE is variably sized, and contains (local?, index) pairs for
 	// every upvalue stored within.

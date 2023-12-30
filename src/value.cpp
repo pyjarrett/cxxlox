@@ -99,24 +99,24 @@ bool Value::isObj() const
 	return type == ValueType::Obj;
 }
 
-void printValue(Value v)
-{
+std::ostream& operator<<(std::ostream& out, Value v) {
 	switch (v.type) {
 		case ValueType::Bool:
-			std::cout << ((v.as.boolean) ? "true" : "false");
+			out << ((v.as.boolean) ? "true" : "false");
 			break;
 		case ValueType::Nil:
-			std::cout << "nil";
+			out << "nil";
 			break;
 		case ValueType::Number:
-			std::cout << v.as.number;
+			out << v.as.number;
 			break;
 		case ValueType::Obj:
-			printObj(v.toObj());
+			out << v.toObj();
 			break;
 		default:
 			CL_FATAL("Unhandled enum type.");
 	}
+	return out;
 }
 
 bool Value::operator==(const Value& rhs) const

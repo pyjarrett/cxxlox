@@ -51,8 +51,7 @@ void markObject(Obj* obj)
 		return;
 	}
 #ifdef DEBUG_LOG_GC
-	std::cout << "1* Marked: " << std::hex << obj << ' ';
-	printValue(Value::makeObj(obj));
+	std::cout << "1* Marked: " << std::hex << obj << ' ' << Value::makeObj(obj);
 	std::cout << '\n';
 #endif
 	obj->isMarked = true;
@@ -64,8 +63,7 @@ void blackenObj(Obj* obj)
 {
 #ifdef DEBUG_LOG_GC
 	std::cout << "2* Blacken: " << std::hex << (void*)obj << ' ' << objTypeToString(obj->type) << ' ';
-	printValue(Value::makeObj(obj));
-	std::cout << '\n';
+	std::cout << Value::makeObj(obj) << '\n';
 #endif
 
 	switch (obj->type) {
