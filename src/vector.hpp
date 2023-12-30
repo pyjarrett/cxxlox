@@ -60,6 +60,19 @@ Vector<T, TrackWithGC>::~Vector()
 }
 
 template <typename T, bool TrackWithGC>
+void Vector<T, TrackWithGC>::clear()
+{
+	if constexpr (TrackWithGC) {
+		std::free(reinterpret_cast<void*>(data));
+	} else {
+		delete[] data;
+	}
+	data = nullptr;
+	count_ = 0;
+	capacity_ = 0;
+}
+
+template <typename T, bool TrackWithGC>
 void Vector<T, TrackWithGC>::push(T value)
 {
 	if (capacity_ < count_ + 1) {
@@ -93,19 +106,6 @@ void Vector<T, TrackWithGC>::reserve(int32_t newCapacity)
 	capacity_ = newCapacity;
 
 	CL_ASSERT(count_ <= newCapacity);
-}
-
-template <typename T, bool TrackWithGC>
-void Vector<T, TrackWithGC>::clear()
-{
-	if constexpr (TrackWithGC) {
-		std::free(reinterpret_cast<void*>(data));
-	} else {
-		delete[] data;
-	}
-	data = nullptr;
-	count_ = 0;
-	capacity_ = 0;
 }
 
 template <typename T, bool TrackWithGC>
