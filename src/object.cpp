@@ -78,6 +78,18 @@ static void printFunction(ObjFunction* fn) {
 	std::cout << ") ";
 }
 
+const char* objTypeToString(ObjType type)
+{
+	switch (type) {
+		case ObjType::Closure: return "Closure";
+		case ObjType::Function: return "Function";
+		case ObjType::Native: return "Native";
+		case ObjType::String: return "String";
+		case ObjType::Upvalue: return "Upvalue";
+		default: return "Unknown type";
+	}
+}
+
 void printObj(Obj* obj)
 {
 	switch (obj->type) {

@@ -142,6 +142,7 @@ template <> constexpr ObjType typeOf<ObjString>() { return ObjType::String; }
 template <> constexpr ObjType typeOf<ObjUpvalue>() { return ObjType::Upvalue; }
 // clang-format on
 
+[[nodiscard]] const char* objTypeToString(ObjType type);
 void printObj(Obj* obj);
 
 [[nodiscard]] bool isObjType(Value value, ObjType type);
