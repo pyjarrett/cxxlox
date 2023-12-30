@@ -76,6 +76,8 @@ void Vector<T, TrackWithGC>::clear()
 template <typename T, bool TrackWithGC>
 void Vector<T, TrackWithGC>::push(T value)
 {
+	CL_ASSERT(capacity_ >= 0);
+
 	if (capacity_ < count_ + 1) {
 		const auto newCapacity = growCapacity(capacity_);
 		reserve(newCapacity);
@@ -83,6 +85,9 @@ void Vector<T, TrackWithGC>::push(T value)
 	CL_ASSERT(count_ <= capacity_);
 	data[count_] = value;
 	++count_;
+
+	CL_ASSERT(count_ > 0);
+	CL_ASSERT(capacity_ > 0);
 }
 
 template <typename T, bool TrackWithGC>
@@ -98,12 +103,18 @@ T Vector<T, TrackWithGC>::pop()
 	}
 
 	--count_;
+	CL_ASSERT(capacity_ > 0);
+	CL_ASSERT(count_ >= 0);
+
 	return data[count_];
 }
 
 template <typename T, bool TrackWithGC>
 void Vector<T, TrackWithGC>::reserve(int32_t newCapacity)
 {
+	CL_ASSERT(capacity_ >= 0);
+	CL_ASSERT(newCapacity >= 0);
+
 	if (newCapacity < count_) {
 		return;
 	}
