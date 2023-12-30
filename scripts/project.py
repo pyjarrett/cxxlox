@@ -45,12 +45,17 @@ def build_bytecode_vm(config: Config) -> bool:
             print("Failed to generate CMake project.")
             return False
 
-
     # The true "build" step.
     # --config is only needed in multi-config generations, like Visual Studio
     result = subprocess.run(f"cmake --build . -j32 --config={config.name}".split())
     if result.returncode != 0:
         print("Building the VM failed.")
+        return False
+
+    # Verify the project unit tests pass.
+    result = subprocess.run(["ctest", "-C", config.name, "--build-and-test"])
+    if result.returncode != 0:
+        print("Compiler and/or VM unit tests failed.")
         return False
 
     os.chdir(previous_dir)
