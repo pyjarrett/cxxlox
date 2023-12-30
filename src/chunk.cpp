@@ -4,13 +4,13 @@ namespace cxxlox {
 
 void Chunk::write(uint8_t byte, int32_t line)
 {
-	this->code.write(byte);
-	this->lines.write(line);
+	this->code.push(byte);
+	this->lines.push(line);
 }
 
 int32_t Chunk::addConstant(Value value)
 {
-	this->constants.write(value);
+	this->constants.push(value);
 	return this->constants.count() - 1;
 }
 

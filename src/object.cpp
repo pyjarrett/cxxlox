@@ -38,7 +38,7 @@ ObjClosure::ObjClosure(cxxlox::ObjFunction* fn)
 	// Set up space for upvalues.
 	upvalues.reserve(fn->upvalueCount);
 	for (int32_t i = 0; i < fn->upvalueCount; ++i) {
-		upvalues.write(nullptr);
+		upvalues.push(nullptr);
 	}
 	function = fn;
 }

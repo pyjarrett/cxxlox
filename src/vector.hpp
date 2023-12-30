@@ -29,7 +29,7 @@ public:
 	Vector& operator=(Vector&&) = delete;
 
 	void clear();
-	void write(T value);
+	void push(T value);
 
 	// Reserve more space in the array.  Does nothing if there are more elements
 	// than the desired new capacity.
@@ -60,7 +60,7 @@ Vector<T, TrackWithGC>::~Vector()
 }
 
 template <typename T, bool TrackWithGC>
-void Vector<T, TrackWithGC>::write(T value)
+void Vector<T, TrackWithGC>::push(T value)
 {
 	if (capacity_ < count_ + 1) {
 		const auto newCapacity = growCapacity(capacity_);

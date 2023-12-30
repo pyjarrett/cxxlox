@@ -22,7 +22,7 @@ TYPED_TEST(VectorTest, BasicOps)
 
 	// Adding to an empty vec forces the first allocation.
 	const int start = 100;
-	this->vec.write(start);
+	this->vec.push(start);
 	EXPECT_EQ(1, this->vec.count());
 	EXPECT_EQ(start, this->vec[0]);
 
@@ -32,7 +32,7 @@ TYPED_TEST(VectorTest, BasicOps)
 	EXPECT_LT(0, initialCapacity);
 	const int numFinalElements = 2 * initialCapacity;
 	for (int i = 1; i < numFinalElements; ++i) {
-		this->vec.write(start + i);
+		this->vec.push(start + i);
 	}
 	// Array should have grown and contain the desired total number of elements.
 	EXPECT_LT(initialCapacity, this->vec.capacity());
@@ -64,7 +64,7 @@ TYPED_TEST(VectorTest, Reserve)
 
 	// Fill with items.
 	for (int i = 0; i < numReservedItems; ++i) {
-		this->vec.write(i);
+		this->vec.push(i);
 	}
 	// Just filled the vec and didn't allocate any more space.
 	EXPECT_EQ(numReservedItems, this->vec.capacity());
@@ -75,7 +75,7 @@ TYPED_TEST(VectorTest, Reserve)
 
 	// Overflow with items and force a growth.
 	for (int i = 0; i < (numDesiredItems - numReservedItems); ++i) {
-		this->vec.write(numReservedItems + i);
+		this->vec.push(numReservedItems + i);
 	}
 	// Should have grown for more items than reserved.
 	EXPECT_LT(numReservedItems, this->vec.capacity());
