@@ -11,10 +11,20 @@ namespace cxxlox {
 
 void* realloc(void* pointer, size_t oldSize, size_t newSize)
 {
+	VM::instance().addUsedMemory(int64_t(newSize) - int64_t(oldSize));
+
 	if (newSize == 0) {
 		std::free(pointer);
 		return nullptr;
 	}
+
+#ifdef DEBUG_STRESS_GC
+	VM::instance().garbageCollect();
+#else
+	if (VM::instance().wantsToGarbageCollect()) {
+		VM::instance().garbageCollect();
+	}
+#endif
 
 	// Realloc
 	void* result = std::realloc(pointer, newSize);
@@ -41,7 +51,7 @@ void markObject(Obj* obj)
 		return;
 	}
 #ifdef DEBUG_LOG_GC
-	std::cout << std::hex << obj << ' ';
+	std::cout << "1* Marked: " << std::hex << obj << ' ';
 	printValue(Value::makeObj(obj));
 	std::cout << '\n';
 #endif
@@ -53,7 +63,7 @@ void markObject(Obj* obj)
 void blackenObj(Obj* obj)
 {
 #ifdef DEBUG_LOG_GC
-	std::cout << std::format("{} blacken", (void*)obj);
+	std::cout << "2* Blacken: " << std::hex << (void*)obj << ' ' << objTypeToString(obj->type) << ' ';
 	printValue(Value::makeObj(obj));
 	std::cout << '\n';
 #endif

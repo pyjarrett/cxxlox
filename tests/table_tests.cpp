@@ -37,14 +37,19 @@ TEST_F(TableTest, SetWithResize)
 {
 	Table table;
 	for (int i = 0; i < 200; ++i) {
+		// Need to track the strings on the stack to prevent them from being GC'd
+		auto key = makeString(std::to_string(i));
+		VM::instance().push(Value::makeString(key));
 		table.set(makeString(std::to_string(i)), Value::makeNumber(i));
 	}
 
 	table.print();
 	for (int i = 0; i < 200; ++i) {
+		auto key = makeString(std::to_string(i));
 		Value value = Value::makeNil();
-		EXPECT_TRUE(table.get(makeString(std::to_string(i)), &value));
+		EXPECT_TRUE(table.get(key, &value));
 		EXPECT_TRUE(value.isNumber());
 		EXPECT_EQ(value.toNumber(), i);
+		CL_UNUSED(VM::instance().pop());
 	}
 }

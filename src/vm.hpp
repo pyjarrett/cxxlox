@@ -75,6 +75,9 @@ struct VM {
 	[[nodiscard]] InterpretResult interpret(const std::string& source);
 
 	void garbageCollect();
+
+	[[nodiscard]] bool wantsToGarbageCollect() const;
+	void addUsedMemory(int64_t bytes);
 	void track(Obj* obj);
 	void intern(ObjString* str);
 	ObjString* lookup(const char* chars, uint32_t length, uint32_t hash) const;
@@ -121,6 +124,12 @@ private:
 	ObjUpvalue* openUpvalues = nullptr;
 
 	bool loadedNativeFunctions = false;
+
+	// Garbage collector tracking and tuning.
+	int64_t bytesAllocated = 0;
+	int64_t nextGC = 128;
+
+	static inline constexpr int64_t kGCHeapGrowFactor = 2;
 };
 
 InterpretResult interpret(const std::string& source);

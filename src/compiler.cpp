@@ -60,6 +60,11 @@ struct Compiler {
 	explicit Compiler(Compiler* enclosing, FunctionType type, Parser& parser)
 		: enclosing(enclosing), type(type), parser(parser)
 	{
+		// Must set s_active here since copyString might trigger a GC and
+		// collect `function`.
+		CL_ASSERT(s_active == enclosing);
+		s_active = this;
+
 		function = allocateObj<ObjFunction>();
 		if (type != FunctionType::Script) {
 			function->name = copyString(parser.previous.start, parser.previous.length);
@@ -70,9 +75,6 @@ struct Compiler {
 		local->depth = 0;
 		local->name.start = ""; // So the user can't refer to it.
 		local->name.length = 0;
-
-		CL_ASSERT(s_active == enclosing);
-		s_active = this;
 	}
 
 	// Deviation: was renamed endCompiler()

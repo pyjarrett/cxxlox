@@ -30,7 +30,7 @@ T* allocateObj(Args&&... args)
 	VM::instance().track(reinterpret_cast<Obj*>(t));
 
 #ifdef DEBUG_LOG_GC
-	std::cout << "Allocate " << std::hex << location << " of " << sizeof(T) << " for " << static_cast<int>(typeOf<T>())
+	std::cout << "Allocate " << std::hex << location << " of " << sizeof(T) << " for " << objTypeToString(typeOf<T>())
 			  << '\n';
 #endif
 

@@ -69,7 +69,9 @@ ObjString* Table::findKey(const char* chars, int32_t length, uint32_t hash) cons
 
 bool Table::set(ObjString* key, Value value)
 {
-	if (count_ + 1 > capacity_ * kMaxLoadFactor) {
+	CL_ASSERT(key);
+
+	if (count_ + 1 >= capacity_ * kMaxLoadFactor) {
 		adjustCapacity();
 	}
 
@@ -175,10 +177,23 @@ void Table::print()
 void Table::mark()
 {
 	for (int i = 0; i < capacity_; ++i) {
-		markObject(entries_[i].key->asObj());
-		markValue(&entries_[i].value);
+		Entry& entry = entries_[i];
+		markObject(entry.key->asObj());
+		markValue(&entry.value);
 	}
 }
+
+
+void Table::removeUnmarked()
+{
+	for (int i = 0; i < capacity_; ++i) {
+		Entry* entry = &entries_[i];
+		if (entry->key && !entry->key->asObj()->isMarked) {
+			remove(entry->key);
+		}
+	}
+}
+
 
 void Table::adjustCapacity()
 {

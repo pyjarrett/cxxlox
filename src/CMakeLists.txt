@@ -44,7 +44,8 @@ target_include_directories(cxxlox_vm_cli SYSTEM PUBLIC ${PROJECT_ROOT}/src)
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     # Print code and trace commands in debug modes.
     target_compile_definitions(cxxlox_vm PRIVATE DEBUG_PRINT_CODE DEBUG_TRACE_EXECUTION)
-    target_compile_definitions(cxxlox_vm PRIVATE DEBUG_LOG_GC DEBUG_STRESS_GC)
+    target_compile_definitions(cxxlox_vm PRIVATE DEBUG_LOG_GC )
+    target_compile_definitions(cxxlox_vm PRIVATE DEBUG_STRESS_GC)
 endif()
 
 target_compile_definitions(cxxlox_vm PRIVATE ${CL_COMMON_DEFNS})

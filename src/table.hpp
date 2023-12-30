@@ -40,6 +40,7 @@ public:
 
 	// Mark objects for garbage collector.
 	void mark();
+	void removeUnmarked();
 
 private:
 	void adjustCapacity();

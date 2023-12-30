@@ -29,7 +29,10 @@ static Value clockNative(int argCount, Value* args)
 static void freeObj(Obj* obj)
 {
 #ifdef DEBUG_LOG_GC
-	std::cout << "Freeing " << std::hex << obj << " of type " << static_cast<int>(obj->type) << '\n';
+	std::cout << "Freeing " << std::hex << obj << " of type " << objTypeToString(obj->type) << '\n';
+	std::cout << "    -> ";
+	printObj(obj);
+	std::cout << '\n';
 #endif
 
 	switch (obj->type) {
@@ -107,8 +110,9 @@ void VM::runtimeError(const std::string& message)
 
 void VM::defineNative(const char* name, NativeFunction fn)
 {
-	ObjNative* native = allocateObj<ObjNative>();
 	push(Value::makeString(copyString(name)));
+
+	ObjNative* native = allocateObj<ObjNative>();
 	push(Value::makeNative(native));
 	native->function = fn;
 
@@ -298,14 +302,18 @@ template <typename Op>
 static void concatenate()
 {
 	VM& vm = VM::instance();
-	const auto* b = vm.pop().toObj()->toString();
-	const auto* a = vm.pop().toObj()->toString();
+
+	// Peek to keep strings alive until GC.
+	const auto* b = vm.peek(0).toObj()->toString();
+	const auto* a = vm.peek(0).toObj()->toString();
 
 	const auto length = a->length + b->length;
 	char* chars = new char[length + 1];
 	chars[length] = '\0';
 	memcpy(&chars[0], &a->chars[0], a->length);
 	memcpy(&chars[a->length], &b->chars[0], b->length);
+	CL_UNUSED(vm.pop());
+	CL_UNUSED(vm.pop());
 	vm.push(Value::makeObj(takeString(chars, length)->asObj()));
 }
 
@@ -510,6 +518,11 @@ InterpretResult VM::run()
 
 InterpretResult VM::interpret(const std::string& source)
 {
+#ifdef CL_DEBUG
+	// Eagerly flush every print.
+	std::cout.setf(std::ios::unitbuf);
+#endif
+
 	// Deviation: Cannot load native functions in c'tor since allocateObj needs
 	// to ask the VM to track the native function.
 	if (!loadedNativeFunctions) {
@@ -522,6 +535,10 @@ InterpretResult VM::interpret(const std::string& source)
 		return InterpretResult::CompileError;
 	}
 
+	// Deviation: Must push compiler function here since the handling of the
+	// compiler stack is slightly different.  Otherwise, this function might
+	// get reaped if GC happens when the closure is allocated.
+	VM::instance().push(Value::makeObj((Obj*)function));
 	ObjClosure* closure = allocateObj<ObjClosure>(function);
 	CL_UNUSED(pop());
 	push(Value::makeClosure(closure));
@@ -534,15 +551,31 @@ void VM::garbageCollect()
 {
 #ifdef DEBUG_LOG_GC
 	std::cout << "-- gc start\n";
+	int64_t bytesBefore = int64_t(bytesAllocated);
 #endif
 
 	markRoots();
 	traceReferences();
+	strings.removeUnmarked();
 	sweep();
+
+	nextGC = bytesAllocated * kGCHeapGrowFactor;
 
 #ifdef DEBUG_LOG_GC
 	std::cout << "-- gc end\n";
+	std::cout << "Collected " << (bytesBefore - bytesAllocated) << " bytes "
+		<< bytesAllocated << " remain, next collect is at " << nextGC << '\n';
 #endif
+}
+
+bool VM::wantsToGarbageCollect() const
+{
+	return bytesAllocated > nextGC;
+}
+
+void VM::addUsedMemory(int64_t bytes)
+{
+	bytesAllocated += bytes;
 }
 
 void VM::track(Obj* obj)
@@ -554,12 +587,12 @@ void VM::track(Obj* obj)
 void VM::markRoots()
 {
 	// Everything in the stack.
-	for (Value* value = stack; stack < stackTop; value++) {
+	for (Value* value = &stack[0]; value < stackTop; value++) {
 		markValue(value);
 	}
 
 	// Mark the closures stored in the stack frames.
-	for (int i =0 ; i <this->frameCount; ++i) {
+	for (int i = 0; i < this->frameCount; ++i) {
 		markObject(frames[i].closure->asObj());
 	}
 
@@ -568,9 +601,8 @@ void VM::markRoots()
 		markObject(upvalue->asObj());
 	}
 
-	markActiveCompilers();
-
 	globals.mark();
+	markActiveCompilers();
 }
 
 // Expand outward from the roots to trace and find all referenced objects.
@@ -593,8 +625,7 @@ void VM::sweep()
 			current->isMarked = false;
 			previous = current;
 			current = current->next;
-		}
-		else {
+		} else {
 			// Wasn't referenced (white node), so remove.
 			Obj* garbage = current;
 			current = current->next;
@@ -602,8 +633,7 @@ void VM::sweep()
 			if (previous) {
 				// Interior or tail node.
 				previous->next = current;
-			}
-			else {
+			} else {
 				// Reattach list head.
 				objects = current;
 			}
