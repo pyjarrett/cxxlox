@@ -19,7 +19,6 @@ set(CXXLOX_SRCS
 # Track headers and add them to the source list so that CLion can look things
 # up appropriately.
 set(CXXLOX_HEADERS
-    array.hpp
     chunk.hpp
     cli.hpp
     common.hpp
@@ -34,6 +33,7 @@ set(CXXLOX_HEADERS
     table.hpp
     token.hpp
     value.hpp
+    vector.hpp
     vm.hpp
 )
 add_library(cxxlox_vm STATIC ${CXXLOX_SRCS} ${CXXLOX_HEADERS})

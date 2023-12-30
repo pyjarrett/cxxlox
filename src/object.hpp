@@ -80,7 +80,7 @@ struct ObjClosure {
 
 	// Closed over values which might on the stack above this function, or
 	// stored on the heap.
-	Array<ObjUpvalue*> upvalues;
+	Vector<ObjUpvalue*> upvalues;
 
 	explicit ObjClosure(ObjFunction* fn);
 

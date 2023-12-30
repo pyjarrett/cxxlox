@@ -6,24 +6,27 @@
 
 namespace cxxlox {
 
+// A very simple resizable array for trivially copyable types.
+// Goes along with the "write the project with the bare minimum" theme.
+//
 // Going with the bool for TrackWithGC for now.  In the debugger it might be
 // better to see an allocator selection tag like "AllocatorTag::TrackWithGC"
 // instead of "true" in the typename, but I'm going with the simpler solution
 // for now.
 template <typename T, bool TrackWithGC = true>
-class Array
+class Vector
 {
 	static_assert(std::is_trivially_copyable_v<T>, "Array only works with trivial types.");
 
 public:
-	Array() = default;
-	~Array();
+	Vector() = default;
+	~Vector();
 
-	Array(const Array&) = delete;
-	Array& operator=(const Array&) = delete;
+	Vector(const Vector&) = delete;
+	Vector& operator=(const Vector&) = delete;
 
-	Array(Array&&) = delete;
-	Array& operator=(Array&&) = delete;
+	Vector(Vector&&) = delete;
+	Vector& operator=(Vector&&) = delete;
 
 	void clear();
 	void write(T value);
@@ -48,16 +51,16 @@ private:
 	/// Dynamically allocated array of data.
 	T* data = nullptr;
 };
-static_assert(sizeof(Array<char>) == 16);
+static_assert(sizeof(Vector<char>) == 16);
 
 template <typename T, bool TrackWithGC>
-Array<T, TrackWithGC>::~Array()
+Vector<T, TrackWithGC>::~Vector()
 {
 	clear();
 }
 
 template <typename T, bool TrackWithGC>
-void Array<T, TrackWithGC>::write(T value)
+void Vector<T, TrackWithGC>::write(T value)
 {
 	if (capacity_ < count_ + 1) {
 		const auto newCapacity = growCapacity(capacity_);
@@ -69,7 +72,7 @@ void Array<T, TrackWithGC>::write(T value)
 }
 
 template <typename T, bool TrackWithGC>
-void Array<T, TrackWithGC>::reserve(int32_t newCapacity)
+void Vector<T, TrackWithGC>::reserve(int32_t newCapacity)
 {
 	if (newCapacity < count_) {
 		return;
@@ -93,7 +96,7 @@ void Array<T, TrackWithGC>::reserve(int32_t newCapacity)
 }
 
 template <typename T, bool TrackWithGC>
-void Array<T, TrackWithGC>::clear()
+void Vector<T, TrackWithGC>::clear()
 {
 	if constexpr (TrackWithGC) {
 		std::free(reinterpret_cast<void*>(data));
@@ -106,7 +109,7 @@ void Array<T, TrackWithGC>::clear()
 }
 
 template <typename T, bool TrackWithGC>
-const T& Array<T, TrackWithGC>::operator[](int32_t index) const
+const T& Vector<T, TrackWithGC>::operator[](int32_t index) const
 {
 	CL_ASSERT(count_ <= capacity_);
 	CL_ASSERT(index >= 0 && index < count_);
@@ -114,7 +117,7 @@ const T& Array<T, TrackWithGC>::operator[](int32_t index) const
 }
 
 template <typename T, bool TrackWithGC>
-T& Array<T, TrackWithGC>::operator[](int32_t index)
+T& Vector<T, TrackWithGC>::operator[](int32_t index)
 {
 	CL_ASSERT(count_ <= capacity_);
 	CL_ASSERT(index >= 0 && index < count_);

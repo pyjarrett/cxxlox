@@ -1,8 +1,8 @@
 #pragma once
 
-#include "array.hpp"
 #include "common.hpp"
 #include "value.hpp"
+#include "vector.hpp"
 
 namespace cxxlox {
 
@@ -52,10 +52,10 @@ struct Chunk {
 	void write(uint8_t byte, int32_t line);
 	[[nodiscard]] int32_t addConstant(Value value);
 
-	Array<uint8_t> code;
-	Array<Value> constants;
-	Array<int32_t> lines;
+	Vector<uint8_t> code;
+	Vector<Value> constants;
+	Vector<int32_t> lines;
 };
-static_assert(sizeof(Chunk) == 3 * sizeof(Array<char>));
+static_assert(sizeof(Chunk) == 3 * sizeof(Vector<char>));
 
 } // namespace cxxlox

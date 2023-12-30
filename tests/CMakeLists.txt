@@ -2,9 +2,9 @@
 include(GoogleTest)
 
 add_executable(cxxlox_unit_tests
-    array_tests.cpp
     object_tests.cpp
     table_tests.cpp
+    vector_tests.cpp
     vm_tests.cpp
 )
 target_link_libraries(cxxlox_unit_tests cxxlox_vm GTest::gtest_main)
