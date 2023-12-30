@@ -48,6 +48,22 @@ TYPED_TEST(VectorTest, BasicOps)
 	EXPECT_EQ(0, this->vec.capacity());
 }
 
+TYPED_TEST(VectorTest, AddAndRemove)
+{
+	this->vec.push(1);
+	this->vec.push(3);
+	this->vec.push(5);
+	this->vec.push(7);
+	this->vec.push(9);
+	EXPECT_EQ(5, this->vec.count());
+
+	EXPECT_EQ(9, this->vec.pop());
+	EXPECT_EQ(4, this->vec.count());
+
+	EXPECT_EQ(7, this->vec.pop());
+	EXPECT_EQ(3, this->vec.count());
+}
+
 TYPED_TEST(VectorTest, Reserve)
 {
 	EXPECT_EQ(0, this->vec.capacity());

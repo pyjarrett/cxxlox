@@ -30,6 +30,7 @@ public:
 
 	void clear();
 	void push(T value);
+	[[nodiscard]] T pop();
 
 	// Reserve more space in the array.  Does nothing if there are more elements
 	// than the desired new capacity.
@@ -82,6 +83,22 @@ void Vector<T, TrackWithGC>::push(T value)
 	CL_ASSERT(count_ <= capacity_);
 	data[count_] = value;
 	++count_;
+}
+
+template <typename T, bool TrackWithGC>
+T Vector<T, TrackWithGC>::pop()
+{
+	static_assert(std::is_trivially_destructible_v<T>, "Pop requires simple types.");
+	CL_ASSERT(count_ > 0);
+
+	// Be extra safe, in case CL_FATAL gets disabled.
+	if (count_ == 0) {
+		CL_FATAL("Trying to pop an empty vector.");
+		return T {};
+	}
+
+	--count_;
+	return data[count_];
 }
 
 template <typename T, bool TrackWithGC>
