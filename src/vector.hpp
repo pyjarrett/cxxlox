@@ -64,7 +64,7 @@ template <typename T, bool TrackWithGC>
 void Vector<T, TrackWithGC>::clear()
 {
 	if constexpr (TrackWithGC) {
-		std::free(reinterpret_cast<void*>(data));
+		CL_UNUSED(realloc(data, sizeof(T) * capacity_, 0));
 	} else {
 		delete[] data;
 	}
