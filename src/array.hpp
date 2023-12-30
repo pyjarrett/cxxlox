@@ -25,8 +25,8 @@ public:
 	Array(Array&&) = delete;
 	Array& operator=(Array&&) = delete;
 
+	void clear();
 	void write(T value);
-	void free();
 
 	// Reserve more space in the array.  Does nothing if there are more elements
 	// than the desired new capacity.
@@ -53,7 +53,7 @@ static_assert(sizeof(Array<char>) == 16);
 template <typename T, bool TrackWithGC>
 Array<T, TrackWithGC>::~Array()
 {
-	free();
+	clear();
 }
 
 template <typename T, bool TrackWithGC>
@@ -93,7 +93,7 @@ void Array<T, TrackWithGC>::reserve(int32_t newCapacity)
 }
 
 template <typename T, bool TrackWithGC>
-void Array<T, TrackWithGC>::free()
+void Array<T, TrackWithGC>::clear()
 {
 	if constexpr (TrackWithGC) {
 		std::free(reinterpret_cast<void*>(data));

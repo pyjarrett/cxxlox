@@ -43,7 +43,7 @@ TYPED_TEST(ArrayTest, BasicOps)
 		EXPECT_EQ(this->array[i], start + i);
 	}
 
-	this->array.free();
+	this->array.clear();
 	EXPECT_EQ(0, this->array.count());
 	EXPECT_EQ(0, this->array.capacity());
 }
