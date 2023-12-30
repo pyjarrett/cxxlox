@@ -25,6 +25,12 @@ ObjClosure* Obj::toClosure()
 	return reinterpret_cast<ObjClosure*>(this);
 }
 
+ObjClass* Obj::toClass()
+{
+	CL_ASSERT(type == ObjType::Class);
+	return reinterpret_cast<ObjClass*>(this);
+}
+
 ObjUpvalue* Obj::toUpvalue()
 {
 	CL_ASSERT(type == ObjType::Upvalue);
@@ -47,6 +53,11 @@ ObjClosure::ObjClosure(cxxlox::ObjFunction* fn)
 		upvalues.push(nullptr);
 	}
 	function = fn;
+}
+
+ObjClass::ObjClass(ObjString* name) : name(name)
+{
+	CL_ASSERT(name);
 }
 
 // Deviation: using destructor instead of `freeObject`
@@ -81,12 +92,20 @@ static std::ostream& operator<<(std::ostream& out, ObjFunction* fn)
 const char* objTypeToString(ObjType type)
 {
 	switch (type) {
-		case ObjType::Closure: return "Closure";
-		case ObjType::Function: return "Function";
-		case ObjType::Native: return "Native";
-		case ObjType::String: return "String";
-		case ObjType::Upvalue: return "Upvalue";
-		default: return "Unknown type";
+		case ObjType::Closure:
+			return "Closure";
+		case ObjType::Class:
+			return "Class";
+		case ObjType::Function:
+			return "Function";
+		case ObjType::Native:
+			return "Native";
+		case ObjType::String:
+			return "String";
+		case ObjType::Upvalue:
+			return "Upvalue";
+		default:
+			return "Unknown type";
 	}
 }
 
@@ -98,6 +117,9 @@ std::ostream& operator<<(std::ostream& out, Obj* obj)
 			break;
 		case ObjType::Closure:
 			out << obj->toClosure()->function;
+			break;
+		case ObjType::Class:
+			out << obj->toClass()->name;
 			break;
 		case ObjType::Native:
 			out << "<native fn>";

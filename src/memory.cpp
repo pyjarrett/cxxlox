@@ -3,7 +3,6 @@
 #include "object.hpp"
 #include "value.hpp"
 #include "vm.hpp"
-
 #include <format>
 #include <iostream>
 
@@ -80,6 +79,10 @@ void blackenObj(Obj* obj)
 			for (auto i = 0; i < closure->upvalues.count(); ++i) {
 				markObject(closure->upvalues[i]->asObj());
 			}
+		} break;
+		case ObjType::Class: {
+			ObjClass* klass = obj->toClass();
+			markObject(klass->name->asObj());
 		} break;
 		case ObjType::Function: {
 			ObjFunction* fn = obj->toFunction();

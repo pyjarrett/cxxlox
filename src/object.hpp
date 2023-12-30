@@ -12,6 +12,7 @@ namespace cxxlox {
 enum class ObjType
 {
 	Closure,
+	Class,
 	Function,
 	Native,
 	String,
@@ -21,6 +22,7 @@ enum class ObjType
 struct ObjString;
 struct ObjFunction;
 struct ObjClosure;
+struct ObjClass;
 struct ObjNative;
 struct ObjUpvalue;
 
@@ -40,6 +42,7 @@ struct Obj {
 	[[nodiscard]] ObjString* toString();
 	[[nodiscard]] ObjFunction* toFunction();
 	[[nodiscard]] ObjClosure* toClosure();
+	[[nodiscard]] ObjClass* toClass();
 	[[nodiscard]] ObjUpvalue* toUpvalue();
 	[[nodiscard]] ObjNative* toNative();
 };
@@ -87,6 +90,17 @@ struct ObjClosure {
 
 	explicit ObjClosure(ObjFunction* fn);
 	~ObjClosure() = default;
+
+	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
+};
+
+struct ObjClass {
+	Obj obj;
+
+	// Name for stack traces.
+	ObjString* name;
+
+	explicit ObjClass(ObjString* name);
 
 	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };
@@ -140,6 +154,7 @@ struct ObjUpvalue {
 // Compile-time switch which is more obvious than a static member of an object type.
 template <typename T> constexpr ObjType typeOf();
 template <> constexpr ObjType typeOf<ObjClosure>() { return ObjType::Closure; }
+template <> constexpr ObjType typeOf<ObjClass>() { return ObjType::Class; }
 template <> constexpr ObjType typeOf<ObjFunction>() { return ObjType::Function; }
 template <> constexpr ObjType typeOf<ObjNative>() { return ObjType::Native; }
 template <> constexpr ObjType typeOf<ObjString>() { return ObjType::String; }

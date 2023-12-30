@@ -40,6 +40,9 @@ static void freeObj(Obj* obj)
 		case ObjType::Closure: {
 			freeObj<ObjClosure>(obj);
 		} break;
+		case ObjType::Class: {
+			freeObj<ObjClass>(obj);
+		};
 		case ObjType::Function: {
 			freeObj<ObjFunction>(obj);
 		} break;
