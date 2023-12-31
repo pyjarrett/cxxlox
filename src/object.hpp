@@ -21,6 +21,15 @@ enum class ObjType
 	Upvalue,
 };
 
+template <typename T>
+constexpr ObjType typeOf()
+{
+	return T::type;
+}
+
+[[nodiscard]] const char* objTypeToString(ObjType type);
+[[nodiscard]] bool isObjType(Value value, ObjType type);
+
 struct ObjString;
 struct ObjFunction;
 struct ObjClosure;
@@ -50,6 +59,8 @@ struct Obj {
 	[[nodiscard]] ObjUpvalue* toUpvalue();
 	[[nodiscard]] ObjNative* toNative();
 };
+
+std::ostream& operator<<(std::ostream& out, Obj* obj);
 
 struct ObjFunction {
 	static constexpr ObjType type = ObjType::Function;
@@ -178,17 +189,6 @@ struct ObjUpvalue {
 
 	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };
-
-template <typename T>
-constexpr ObjType typeOf()
-{
-	return T::type;
-}
-
-[[nodiscard]] const char* objTypeToString(ObjType type);
-std::ostream& operator<<(std::ostream& out, Obj* obj);
-
-[[nodiscard]] bool isObjType(Value value, ObjType type);
 
 [[nodiscard]] ObjString* copyString(const char* chars);
 
