@@ -32,6 +32,7 @@ enum OpCode : uint8_t
 	OP_SET_LOCAL,
 	OP_SET_GLOBAL,
 	OP_RETURN,
+	OP_CLASS,
 
 	// Comparisons
 	// Note that >= and <= are implemented as !< and !> respectively.

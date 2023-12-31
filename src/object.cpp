@@ -119,7 +119,7 @@ std::ostream& operator<<(std::ostream& out, Obj* obj)
 			out << obj->toClosure()->function;
 			break;
 		case ObjType::Class:
-			out << obj->toClass()->name;
+			out << obj->toClass()->name->chars;
 			break;
 		case ObjType::Native:
 			out << "<native fn>";

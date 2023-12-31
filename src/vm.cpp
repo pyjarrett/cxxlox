@@ -42,7 +42,7 @@ static void freeObj(Obj* obj)
 		} break;
 		case ObjType::Class: {
 			freeObj<ObjClass>(obj);
-		};
+		} break;
 		case ObjType::Function: {
 			freeObj<ObjFunction>(obj);
 		} break;
@@ -401,6 +401,9 @@ InterpretResult VM::run()
 				// Remove the last stack frame.
 				stackTop = lastFrame->slots;
 				push(result);
+			} break;
+			case OP_CLASS: {
+				push(Value::makeObj(allocateObj<ObjClass>(readString())->asObj()));
 			} break;
 			case OP_ADD:
 				if (isObjType(peek(0), ObjType::String) && isObjType(peek(1), ObjType::String)) {

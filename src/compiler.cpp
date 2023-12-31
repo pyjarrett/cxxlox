@@ -117,6 +117,7 @@ struct Compiler {
 	// Syntactical functions
 	////////////////////////////////////////////////////////////////////////////
 	void declaration();
+	void classDeclaration();
 	void functionDeclaration();
 	void varDeclaration();
 
@@ -529,7 +530,9 @@ void Compiler::namedVariable(Token name, bool canAssign)
 ////////////////////////////////////////////////////////////////////////////////
 void Compiler::declaration()
 {
-	if (parser.match(TokenType::Fun)) {
+	if (parser.match(TokenType::Class)) {
+		classDeclaration();
+	} else if (parser.match(TokenType::Fun)) {
 		functionDeclaration();
 	} else if (parser.match(TokenType::Var)) {
 		varDeclaration();
@@ -542,6 +545,21 @@ void Compiler::declaration()
 	if (parser.panicMode) {
 		parser.synchronize();
 	}
+}
+
+// Starts after `class` token
+void Compiler::classDeclaration()
+{
+	parser.consume(TokenType::Identifier, "Expected a class name.");
+	const uint8_t nameConstant = identifierConstant(&parser.previous);
+	declareVariable();
+	emitBytes(OP_CLASS, nameConstant);
+
+	// Define the class name, so that class internals to reference the class
+	defineVariable(nameConstant);
+
+	parser.consume(TokenType::LeftBrace, "Expected an opening brace.");
+	parser.consume(TokenType::RightBrace, "Expected a closing brace.");
 }
 
 void Compiler::functionDeclaration()
