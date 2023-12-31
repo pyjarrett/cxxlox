@@ -60,6 +60,22 @@ struct Obj {
 	[[nodiscard]] ObjNative* toNative();
 };
 
+// Obj-like types are heap allocated and stored inside a `Obj*` within Value,
+// so reinterpret_cast to the real type must work correctly.
+//
+// This relies on them being "standard layout", having a leading `obj` header to
+// track the type and garbage collection utilities, and having an associate
+// `static ObjType type` static member.
+template <typename T>
+[[nodiscard]] constexpr bool isObjFormat()
+{
+	// clang-format off
+	return (offsetof(T, obj) == 0)
+		   && std::is_standard_layout_v<T>
+		   && std::is_same_v<decltype(typeOf<T>()), ObjType>;
+	// clang-format on
+}
+
 std::ostream& operator<<(std::ostream& out, Obj* obj);
 
 struct ObjFunction {
