@@ -2,6 +2,7 @@
 
 #include "chunk.hpp"
 #include "common.hpp"
+#include "table.hpp"
 #include "value.hpp"
 
 #include <iosfwd>
@@ -13,6 +14,7 @@ enum class ObjType
 {
 	Closure,
 	Class,
+	Instance,
 	Function,
 	Native,
 	String,
@@ -23,6 +25,7 @@ struct ObjString;
 struct ObjFunction;
 struct ObjClosure;
 struct ObjClass;
+struct ObjInstance;
 struct ObjNative;
 struct ObjUpvalue;
 
@@ -43,6 +46,7 @@ struct Obj {
 	[[nodiscard]] ObjFunction* toFunction();
 	[[nodiscard]] ObjClosure* toClosure();
 	[[nodiscard]] ObjClass* toClass();
+	[[nodiscard]] ObjInstance* toInstance();
 	[[nodiscard]] ObjUpvalue* toUpvalue();
 	[[nodiscard]] ObjNative* toNative();
 };
@@ -105,6 +109,17 @@ struct ObjClass {
 	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };
 
+struct ObjInstance {
+	Obj obj;
+
+	explicit ObjInstance(ObjClass* klass);
+
+	ObjClass* klass;
+	Table fields;
+
+	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
+};
+
 // Every ObjString owns its own characters.
 struct ObjString {
 	Obj obj;
@@ -155,6 +170,7 @@ struct ObjUpvalue {
 template <typename T> constexpr ObjType typeOf();
 template <> constexpr ObjType typeOf<ObjClosure>() { return ObjType::Closure; }
 template <> constexpr ObjType typeOf<ObjClass>() { return ObjType::Class; }
+template <> constexpr ObjType typeOf<ObjInstance>() { return ObjType::Instance; }
 template <> constexpr ObjType typeOf<ObjFunction>() { return ObjType::Function; }
 template <> constexpr ObjType typeOf<ObjNative>() { return ObjType::Native; }
 template <> constexpr ObjType typeOf<ObjString>() { return ObjType::String; }

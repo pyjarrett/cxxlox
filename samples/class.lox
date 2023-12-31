@@ -1,3 +1,5 @@
 class Empty {}
-
 print Empty;
+
+var e = Empty();
+print e;

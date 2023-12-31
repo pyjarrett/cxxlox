@@ -43,6 +43,9 @@ static void freeObj(Obj* obj)
 		case ObjType::Class: {
 			freeObj<ObjClass>(obj);
 		} break;
+		case ObjType::Instance:
+			freeObj<ObjInstance>(obj);
+			break;
 		case ObjType::Function: {
 			freeObj<ObjFunction>(obj);
 		} break;
@@ -196,6 +199,13 @@ bool VM::callValue(Value callee, int argCount)
 {
 	if (callee.isObj()) {
 		switch (callee.toObj()->type) {
+			case ObjType::Class: {
+				ObjClass* klass = callee.toObj()->toClass();
+
+				// Place the instance at the top of the stack after arg count is removed.
+				stackTop[-argCount - 1] = Value::makeObj(allocateObj<ObjInstance>(klass)->asObj());
+				return true;
+			}
 			case ObjType::Closure:
 				return call(callee.toObj()->toClosure(), argCount);
 			case ObjType::Function:
@@ -565,8 +575,8 @@ void VM::garbageCollect()
 
 #ifdef DEBUG_LOG_GC
 	std::cout << "-- gc end\n";
-	std::cout << "Collected " << (bytesBefore - bytesAllocated) << " bytes "
-		<< bytesAllocated << " remain, next collect is at " << nextGC << '\n';
+	std::cout << "Collected " << (bytesBefore - bytesAllocated) << " bytes " << bytesAllocated
+			  << " remain, next collect is at " << nextGC << '\n';
 #endif
 }
 

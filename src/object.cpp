@@ -31,6 +31,12 @@ ObjClass* Obj::toClass()
 	return reinterpret_cast<ObjClass*>(this);
 }
 
+ObjInstance* Obj::toInstance()
+{
+	CL_ASSERT(type == ObjType::Instance);
+	return reinterpret_cast<ObjInstance*>(this);
+}
+
 ObjUpvalue* Obj::toUpvalue()
 {
 	CL_ASSERT(type == ObjType::Upvalue);
@@ -58,6 +64,12 @@ ObjClosure::ObjClosure(cxxlox::ObjFunction* fn)
 ObjClass::ObjClass(ObjString* name) : name(name)
 {
 	CL_ASSERT(name);
+}
+
+ObjInstance::ObjInstance(cxxlox::ObjClass* klass)
+: klass(klass)
+{
+	CL_ASSERT(klass);
 }
 
 // Deviation: using destructor instead of `freeObject`
@@ -120,6 +132,9 @@ std::ostream& operator<<(std::ostream& out, Obj* obj)
 			break;
 		case ObjType::Class:
 			out << obj->toClass()->name->chars;
+			break;
+		case ObjType::Instance:
+			out << obj->toInstance()->klass->name->chars << " instance";
 			break;
 		case ObjType::Native:
 			out << "<native fn>";
