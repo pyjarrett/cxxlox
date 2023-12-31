@@ -15,7 +15,7 @@ template <typename T>
 [[nodiscard]] constexpr bool isObjFormat()
 {
 	// A leading `obj` member variable is used for garbage collection.
-	return (offsetof(T, obj) == 0) && std::is_standard_layout_v<T>;
+	return (offsetof(T, obj) == 0) && std::is_standard_layout_v<T> && std::is_same_v<decltype(typeOf<T>()), ObjType>;
 }
 
 template <typename T, typename... Args>

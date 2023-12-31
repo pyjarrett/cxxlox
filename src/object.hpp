@@ -52,6 +52,8 @@ struct Obj {
 };
 
 struct ObjFunction {
+	static constexpr ObjType type = ObjType::Function;
+
 	Obj obj;
 	Chunk chunk;
 	ObjString* name = nullptr;
@@ -76,12 +78,16 @@ using NativeFunction = Value (*)(int argCount, Value* args);
 
 // A function for calling native code.
 struct ObjNative {
+	static constexpr ObjType type = ObjType::Native;
+
 	Obj obj;
 	NativeFunction function = nullptr;
 };
 
 // Wraps an ObjFunction and tracks upvalues.
 struct ObjClosure {
+	static constexpr ObjType type = ObjType::Closure;
+
 	Obj obj;
 
 	// The function underlying this function.  Multiple closures might reference
@@ -99,6 +105,8 @@ struct ObjClosure {
 };
 
 struct ObjClass {
+	static constexpr ObjType type = ObjType::Class;
+
 	Obj obj;
 
 	// Name for stack traces.
@@ -110,6 +118,8 @@ struct ObjClass {
 };
 
 struct ObjInstance {
+	static constexpr ObjType type = ObjType::Instance;
+
 	Obj obj;
 
 	explicit ObjInstance(ObjClass* klass);
@@ -122,6 +132,8 @@ struct ObjInstance {
 
 // Every ObjString owns its own characters.
 struct ObjString {
+	static constexpr ObjType type = ObjType::String;
+
 	Obj obj;
 	int length = 0;
 	char* chars = nullptr;
@@ -144,6 +156,8 @@ struct ObjString {
 
 // Tracks the location of an upvalue.
 struct ObjUpvalue {
+	static constexpr ObjType type = ObjType::Upvalue;
+
 	Obj obj;
 
 	// Pointer to location of an upvalue.  This might be on the stack or on
@@ -165,17 +179,11 @@ struct ObjUpvalue {
 	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };
 
-// clang-format off
-// Compile-time switch which is more obvious than a static member of an object type.
-template <typename T> constexpr ObjType typeOf();
-template <> constexpr ObjType typeOf<ObjClosure>() { return ObjType::Closure; }
-template <> constexpr ObjType typeOf<ObjClass>() { return ObjType::Class; }
-template <> constexpr ObjType typeOf<ObjInstance>() { return ObjType::Instance; }
-template <> constexpr ObjType typeOf<ObjFunction>() { return ObjType::Function; }
-template <> constexpr ObjType typeOf<ObjNative>() { return ObjType::Native; }
-template <> constexpr ObjType typeOf<ObjString>() { return ObjType::String; }
-template <> constexpr ObjType typeOf<ObjUpvalue>() { return ObjType::Upvalue; }
-// clang-format on
+template <typename T>
+constexpr ObjType typeOf()
+{
+	return T::type;
+}
 
 [[nodiscard]] const char* objTypeToString(ObjType type);
 std::ostream& operator<<(std::ostream& out, Obj* obj);
