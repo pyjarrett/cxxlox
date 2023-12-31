@@ -12,10 +12,10 @@ namespace cxxlox {
 // Deviation: was OBJ_CLOSURE, OBJ_FUNCTION, OBJ_STRING
 enum class ObjType
 {
-	Closure,
 	Class,
-	Instance,
+	Closure,
 	Function,
+	Instance,
 	Native,
 	String,
 	Upvalue,
@@ -30,12 +30,12 @@ constexpr ObjType typeOf()
 [[nodiscard]] const char* objTypeToString(ObjType type);
 [[nodiscard]] bool isObjType(Value value, ObjType type);
 
-struct ObjString;
-struct ObjFunction;
-struct ObjClosure;
 struct ObjClass;
+struct ObjClosure;
+struct ObjFunction;
 struct ObjInstance;
 struct ObjNative;
+struct ObjString;
 struct ObjUpvalue;
 
 // An opaque header applied to all object subtypes to ensure every type has a
