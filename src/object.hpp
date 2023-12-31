@@ -149,10 +149,10 @@ struct ObjInstance {
 
 	Obj obj;
 
-	explicit ObjInstance(ObjClass* klass);
-
 	ObjClass* klass;
 	Table fields;
+
+	explicit ObjInstance(ObjClass* klass);
 
 	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };
