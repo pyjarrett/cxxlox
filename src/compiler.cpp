@@ -52,9 +52,6 @@ enum class FunctionType
 
 // Tracks compilation of the top level and each Lox function.
 struct Compiler {
-	// Deviation: markCompilerRoots()
-	static void markActiveCompilers();
-
 	// Compilers form a stack, with each compiler taking the previously open
 	// one as its enclosing scope.
 	explicit Compiler(Compiler* enclosing, FunctionType type, Parser& parser)
