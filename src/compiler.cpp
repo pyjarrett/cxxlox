@@ -885,6 +885,25 @@ static void orOperator(Compiler* compiler, bool canAssign)
 	// Leave either lhs or rhs on stack
 }
 
+// Looks for `obj . identifier` for assignment and property access.
+static void dot(Compiler* compiler, [[maybe_unused]] bool canAssign)
+{
+	Parser& parser = compiler->parser;
+
+	// The expression for the left-hand side should be on the top of the stack.
+	parser.consume(TokenType::Identifier, "Expected an identifier after '.'");
+	const auto name = compiler->identifierConstant(&parser.previous);
+
+	if (canAssign && parser.match(TokenType::Equal)) {
+		// Put the right-hand-side on the stack.
+		compiler->expression();
+		compiler->emitBytes(OP_SET_PROPERTY, name);
+	}
+	else {
+		compiler->emitBytes(OP_GET_PROPERTY, name);
+	}
+}
+
 static void binary(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
 	Parser& parser = compiler->parser;
@@ -1014,7 +1033,7 @@ static PrattRuleMap rules = {
 	{TokenType::LeftBrace, {nullptr, nullptr, PREC_NONE}},
 	{TokenType::RightBrace, {nullptr, nullptr, PREC_NONE}},
 	{TokenType::Comma, {nullptr, nullptr, PREC_NONE}},
-	{TokenType::Dot, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Dot, {nullptr, dot, PREC_CALL}},
 	{TokenType::Semicolon, {nullptr, nullptr, PREC_NONE}},
 
 	{TokenType::Plus, {nullptr, binary, PREC_TERM}},

@@ -31,6 +31,10 @@ enum OpCode : uint8_t
 	OP_SET_UPVALUE,
 	OP_SET_LOCAL,
 	OP_SET_GLOBAL,
+
+	// Really this is SET_FIELD, but named to be consistent with OP_GET_PROPERTY
+	OP_SET_PROPERTY,
+	OP_GET_PROPERTY,
 	OP_RETURN,
 	OP_CLASS,
 

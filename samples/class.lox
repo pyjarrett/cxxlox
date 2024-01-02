@@ -3,3 +3,12 @@ print Empty;
 
 var e = Empty();
 print e;
+
+class Point {}
+var p = Point();
+p.x = 10;
+p.y = 20;
+
+print p;
+print p.x;
+print p.y;

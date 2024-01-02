@@ -492,6 +492,42 @@ InterpretResult VM::run()
 					return InterpretResult::RuntimeError;
 				}
 			} break;
+			case OP_SET_PROPERTY: {
+				// Stack: <object> <expression_value>
+				//        1        0 (top)
+				// Instr: OP_SET_PROPERTY <property_name>
+				if (peek(1).toObj()->toInstance()->type != ObjType::Instance) {
+					runtimeError("Object instances have fields.");
+					return InterpretResult::RuntimeError;
+				}
+
+				ObjInstance* instance = peek(1).toObj()->toInstance();
+				ObjString* property = readString();
+				Value value = pop();
+				instance->fields.set(property, value);
+				CL_UNUSED(pop());
+				push(value);
+			} break;
+			case OP_GET_PROPERTY: {
+				if (peek(0).toObj()->type != ObjType::Instance) {
+					runtimeError("Object instances have properties.");
+					return InterpretResult::RuntimeError;
+				}
+
+				// Property name is in the instruction.
+				ObjString* property = readString();
+				Value value;
+
+				// and the object is on the stack.
+				ObjInstance* instance = peek(0).toObj()->toInstance();
+				if (instance->fields.get(property, &value)) {
+					CL_UNUSED(pop());  // Remove the instance.
+					push(value);
+					break;
+				}
+				runtimeError(std::format("Unknown property: {}", property->chars));
+				return InterpretResult::RuntimeError;
+			} break;
 			case OP_CONSTANT:
 				push(readConstant());
 				break;

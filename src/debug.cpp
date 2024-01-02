@@ -139,6 +139,10 @@ int32_t disassembleInstruction(const Chunk& chunk, int32_t offset)
 			return byteInstruction("OP_SET_UPVALUE", chunk, offset);
 		case OP_GET_UPVALUE:
 			return byteInstruction("OP_GET_UPVALUE", chunk, offset);
+		case OP_SET_PROPERTY:
+			return constantInstruction("OP_SET_PROPERTY", chunk, offset);
+		case OP_GET_PROPERTY:
+			return constantInstruction("OP_GET_PROPERTY", chunk, offset);
 		case OP_JUMP:
 			return jumpInstruction("OP_JUMP", 1, chunk, offset);
 		case OP_JUMP_IF_FALSE:
