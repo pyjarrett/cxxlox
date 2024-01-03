@@ -83,6 +83,7 @@ void blackenObj(Obj* obj)
 		case ObjType::Class: {
 			ObjClass* klass = obj->toClass();
 			markObject(klass->name->asObj());
+			klass->methods.mark();
 		} break;
 		case ObjType::Instance: {
 			ObjInstance* instance = obj->toInstance();

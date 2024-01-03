@@ -139,6 +139,8 @@ struct ObjClass {
 	// Name for stack traces.
 	ObjString* name;
 
+	Table methods;
+
 	explicit ObjClass(ObjString* name);
 
 	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }

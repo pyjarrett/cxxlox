@@ -271,6 +271,17 @@ void VM::closeUpvalues(Value* last)
 	}
 }
 
+void VM::defineMethod(cxxlox::ObjString* methodName)
+{
+	CL_ASSERT(methodName);
+	Value method = peek(0);
+	ObjClass* klass = peek(1).toObj()->toClass();
+	klass->methods.set(methodName, method);
+
+	// Remove method name.
+	CL_UNUSED(pop());
+}
+
 void VM::freeObjects()
 {
 	Obj* obj = objects;
@@ -415,6 +426,9 @@ InterpretResult VM::run()
 			case OP_CLASS: {
 				push(Value::makeObj(allocateObj<ObjClass>(readString())->asObj()));
 			} break;
+			case OP_METHOD: {
+				defineMethod(readString());
+			}break;
 			case OP_ADD:
 				if (isObjType(peek(0), ObjType::String) && isObjType(peek(1), ObjType::String)) {
 					concatenate();

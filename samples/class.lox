@@ -4,7 +4,10 @@ print Empty;
 var e = Empty();
 print e;
 
-class Point {}
+class Point {
+    distance_from_origin() {}
+    distance_to(p) {}
+}
 var p = Point();
 p.x = 10;
 p.y = 20;

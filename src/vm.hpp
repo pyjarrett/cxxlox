@@ -68,6 +68,8 @@ struct VM {
 	[[nodiscard]] ObjUpvalue* captureUpvalue(Value* local);
 	void closeUpvalues(Value* last);
 
+	void defineMethod(ObjString* methodName);
+
 	void runtimeError(const std::string& message);
 
 	void defineNative(const char* name, NativeFunction fn);

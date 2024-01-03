@@ -115,6 +115,7 @@ struct Compiler {
 	////////////////////////////////////////////////////////////////////////////
 	void declaration();
 	void classDeclaration();
+	void method();
 	void functionDeclaration();
 	void varDeclaration();
 
@@ -549,14 +550,36 @@ void Compiler::classDeclaration()
 {
 	parser.consume(TokenType::Identifier, "Expected a class name.");
 	const uint8_t nameConstant = identifierConstant(&parser.previous);
+	const Token className = parser.previous;
 	declareVariable();
 	emitBytes(OP_CLASS, nameConstant);
 
 	// Define the class name, so that class internals to reference the class
 	defineVariable(nameConstant);
 
+	// Put class name back on the stack.
+	namedVariable(className, false);
+
 	parser.consume(TokenType::LeftBrace, "Expected an opening brace.");
+
+	while (!parser.check(TokenType::RightBrace) && !parser.check(TokenType::Eof)) {
+		method();
+	}
+
 	parser.consume(TokenType::RightBrace, "Expected a closing brace.");
+
+	// Pop class name.
+	emitByte(OP_POP);
+}
+
+void Compiler::method()
+{
+	// Get method name.
+	parser.consume(TokenType::Identifier, "Expected a method name.");
+	const uint8_t methodName = identifierConstant(&parser.previous);
+	const FunctionType fnType = FunctionType::Function;
+	defineFunction(fnType);
+	emitBytes(OP_METHOD, methodName);
 }
 
 void Compiler::functionDeclaration()
