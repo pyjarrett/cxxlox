@@ -4,7 +4,6 @@
 #include "common.hpp"
 #include "table.hpp"
 #include "value.hpp"
-
 #include <iosfwd>
 
 namespace cxxlox {
@@ -30,6 +29,7 @@ constexpr ObjType typeOf()
 [[nodiscard]] const char* objTypeToString(ObjType type);
 [[nodiscard]] bool isObjType(Value value, ObjType type);
 
+// struct Obj;
 struct ObjClass;
 struct ObjClosure;
 struct ObjFunction;
@@ -37,6 +37,22 @@ struct ObjInstance;
 struct ObjNative;
 struct ObjString;
 struct ObjUpvalue;
+
+// Obj-like types are heap allocated and stored inside a `Obj*` within Value,
+// so reinterpret_cast to the real type must work correctly.
+//
+// This relies on them being "standard layout", having a leading `obj` header to
+// track the type and garbage collection utilities, and having an associate
+// `static ObjType type` static member.
+template <typename T>
+[[nodiscard]] constexpr bool isObjFormat()
+{
+	// clang-format off
+	return (offsetof(T, obj) == 0)
+		&& std::is_standard_layout_v<T>
+		&& std::is_same_v<decltype(typeOf<T>()), ObjType>;
+	// clang-format on
+}
 
 // An opaque header applied to all object subtypes to ensure every type has a
 // type and a pointer to the next type.
@@ -50,6 +66,22 @@ struct Obj {
 	// garbage collector.
 	Obj* next = nullptr;
 
+	template <typename T>
+	[[nodiscard]] bool is() const
+	{
+		static_assert(isObjFormat<T>());
+		return type == typeOf<T>();
+	}
+
+	template <typename T>
+	[[nodiscard]] T* to()
+	{
+		static_assert(isObjFormat<T>());
+
+		CL_ASSERT(type == typeOf<T>());
+		return reinterpret_cast<T*>(this);
+	}
+
 	// Conversion to overlying types.
 	[[nodiscard]] ObjString* toString();
 	[[nodiscard]] ObjFunction* toFunction();
@@ -59,22 +91,6 @@ struct Obj {
 	[[nodiscard]] ObjUpvalue* toUpvalue();
 	[[nodiscard]] ObjNative* toNative();
 };
-
-// Obj-like types are heap allocated and stored inside a `Obj*` within Value,
-// so reinterpret_cast to the real type must work correctly.
-//
-// This relies on them being "standard layout", having a leading `obj` header to
-// track the type and garbage collection utilities, and having an associate
-// `static ObjType type` static member.
-template <typename T>
-[[nodiscard]] constexpr bool isObjFormat()
-{
-	// clang-format off
-	return (offsetof(T, obj) == 0)
-		   && std::is_standard_layout_v<T>
-		   && std::is_same_v<decltype(typeOf<T>()), ObjType>;
-	// clang-format on
-}
 
 std::ostream& operator<<(std::ostream& out, Obj* obj);
 
