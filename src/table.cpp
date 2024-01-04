@@ -155,7 +155,7 @@ void Table::print()
 				std::cout << "<<>>\n";
 			}
 			else {
-				std::cout << std::format("[{:6}] ", i) << entry->key->asObj();
+				std::cout << std::format("[{:6}] ", i) << asObj(entry->key);
 				std::cout << " " << entry->value << '\n';
 			}
 		}
@@ -175,7 +175,7 @@ void Table::mark()
 {
 	for (int i = 0; i < capacity_; ++i) {
 		Entry& entry = entries_[i];
-		markObject(entry.key->asObj());
+		markObject(asObj(entry.key));
 		markValue(&entry.value);
 	}
 }
@@ -185,7 +185,7 @@ void Table::removeUnmarked()
 {
 	for (int i = 0; i < capacity_; ++i) {
 		Entry* entry = &entries_[i];
-		if (entry->key && !entry->key->asObj()->isMarked) {
+		if (entry->key && !asObj(entry->key)->isMarked) {
 			remove(entry->key);
 		}
 	}

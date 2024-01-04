@@ -55,6 +55,15 @@ template <typename T>
 	// clang-format on
 }
 
+// C is less strict about pointer conversions, so use a template in C++ here,
+// to also get the format check before reinterpret_cast.
+template <typename T>
+[[nodiscard]] Obj* asObj(T* t)
+{
+	static_assert(isObjFormat<T>());
+	return reinterpret_cast<Obj*>(t);
+}
+
 // An opaque header applied to all object subtypes to ensure every type has a
 // type and a pointer to the next type.
 struct Obj {
@@ -114,8 +123,6 @@ struct ObjFunction {
 
 	ObjFunction(ObjFunction&&) = delete;
 	ObjFunction& operator=(ObjFunction&&) = delete;
-
-	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };
 
 using NativeFunction = Value (*)(int argCount, Value* args);
@@ -137,8 +144,6 @@ struct ObjBoundMethod {
 	ObjClosure* method = nullptr;
 
 	ObjBoundMethod(Value receiver, ObjClosure* method);
-
-	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };
 
 // Wraps an ObjFunction and tracks upvalues.
@@ -157,8 +162,6 @@ struct ObjClosure {
 
 	explicit ObjClosure(ObjFunction* fn);
 	~ObjClosure() = default;
-
-	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };
 
 struct ObjClass {
@@ -172,8 +175,6 @@ struct ObjClass {
 	Table methods;
 
 	explicit ObjClass(ObjString* name);
-
-	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };
 
 struct ObjInstance {
@@ -185,8 +186,6 @@ struct ObjInstance {
 	Table fields;
 
 	explicit ObjInstance(ObjClass* klass);
-
-	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };
 
 // Every ObjString owns its own characters.
@@ -209,8 +208,6 @@ struct ObjString {
 	// Move could be allowed, but is explicitly disabled for now.
 	ObjString(ObjString&&) = delete;
 	ObjString& operator=(ObjString&&) = delete;
-
-	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };
 
 // Tracks the location of an upvalue.
@@ -234,8 +231,6 @@ struct ObjUpvalue {
 
 	explicit ObjUpvalue(Value* slot);
 	~ObjUpvalue() = default;
-
-	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };
 
 [[nodiscard]] ObjString* copyString(const char* chars);

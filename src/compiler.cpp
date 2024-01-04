@@ -185,7 +185,7 @@ ClassCompiler* Compiler::s_classCompiler = nullptr;
 void markActiveCompilers()
 {
 	for (Compiler* compiler = Compiler::s_active; compiler; compiler = compiler->enclosing) {
-		markObject(compiler->function->asObj());
+		markObject(asObj(compiler->function));
 	}
 }
 
@@ -208,7 +208,7 @@ uint8_t Compiler::makeConstant(Value value)
 
 [[nodiscard]] uint8_t Compiler::identifierConstant(Token* name)
 {
-	return makeConstant(Value::makeObj(copyString(name->start, name->length)->asObj()));
+	return makeConstant(Value::makeObj(asObj(copyString(name->start, name->length))));
 }
 
 ///////////////////////////////////////////////////////////////////////////////

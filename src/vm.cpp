@@ -213,7 +213,7 @@ bool VM::callValue(Value callee, int argCount)
 				ObjClass* klass = callee.toObj()->toClass();
 
 				// Place the instance at the top of the stack after arg count is removed.
-				stackTop[-argCount - 1] = Value::makeObj(allocateObj<ObjInstance>(klass)->asObj());
+				stackTop[-argCount - 1] = Value::makeObj(asObj(allocateObj<ObjInstance>(klass)));
 				return true;
 			}
 			case ObjType::Closure:
@@ -307,7 +307,7 @@ bool VM::bindMethod(ObjClass* klass, ObjString* name)
 
 	// Pop instance and push the new method.
 	CL_UNUSED(pop());
-	push(Value::makeObj(boundMethod->asObj()));
+	push(Value::makeObj(asObj(boundMethod)));
 	return true;
 }
 
@@ -365,7 +365,7 @@ static void concatenate()
 	memcpy(&chars[a->length], &b->chars[0], b->length);
 	CL_UNUSED(vm.pop());
 	CL_UNUSED(vm.pop());
-	vm.push(Value::makeObj(takeString(chars, length)->asObj()));
+	vm.push(Value::makeObj(asObj(takeString(chars, length))));
 }
 
 InterpretResult VM::run()
@@ -453,7 +453,7 @@ InterpretResult VM::run()
 				push(result);
 			} break;
 			case OP_CLASS: {
-				push(Value::makeObj(allocateObj<ObjClass>(readString())->asObj()));
+				push(Value::makeObj(asObj(allocateObj<ObjClass>(readString()))));
 			} break;
 			case OP_METHOD: {
 				defineMethod(readString());
@@ -687,12 +687,12 @@ void VM::markRoots()
 
 	// Mark the closures stored in the stack frames.
 	for (int i = 0; i < this->frameCount; ++i) {
-		markObject(frames[i].closure->asObj());
+		markObject(asObj(frames[i].closure));
 	}
 
 	// Upvalues need to be tracked too.
 	for (ObjUpvalue* upvalue = openUpvalues; upvalue; upvalue = upvalue->next) {
-		markObject(upvalue->asObj());
+		markObject(asObj(upvalue));
 	}
 
 	globals.mark();

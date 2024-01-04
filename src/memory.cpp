@@ -69,7 +69,7 @@ void blackenObj(Obj* obj)
 		case ObjType::BoundMethod:{
 			ObjBoundMethod* method = obj->to<ObjBoundMethod>();
 			markValue(&method->receiver);
-			markObject(method->method->asObj());
+			markObject(asObj(method->method));
 		} break;
 		case ObjType::String:
 			break;
@@ -80,24 +80,24 @@ void blackenObj(Obj* obj)
 			break;
 		case ObjType::Closure: {
 			ObjClosure* closure = obj->toClosure();
-			markObject(closure->function->asObj());
+			markObject(asObj(closure->function));
 			for (auto i = 0; i < closure->upvalues.count(); ++i) {
-				markObject(closure->upvalues[i]->asObj());
+				markObject(asObj(closure->upvalues[i]));
 			}
 		} break;
 		case ObjType::Class: {
 			ObjClass* klass = obj->toClass();
-			markObject(klass->name->asObj());
+			markObject(asObj(klass->name));
 			klass->methods.mark();
 		} break;
 		case ObjType::Instance: {
 			ObjInstance* instance = obj->toInstance();
-			markObject(instance->klass->asObj());
+			markObject(asObj(instance->klass));
 			instance->fields.mark();
 		}break;
 		case ObjType::Function: {
 			ObjFunction* fn = obj->toFunction();
-			markObject(fn->name->asObj());
+			markObject(asObj(fn->name));
 			for (auto i = 0; i < fn->chunk.constants.count(); ++i) {
 				markValue(&fn->chunk.constants[i]);
 			}
