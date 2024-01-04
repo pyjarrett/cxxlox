@@ -5,6 +5,8 @@
 
 namespace cxxlox {
 
+struct ObjString;
+
 struct Entry final {
 	ObjString* key = nullptr;
 	Value value = Value::makeNil();

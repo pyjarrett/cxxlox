@@ -18,10 +18,6 @@ enum class ValueType
 
 // Object "base class" (for lack of a better term)
 struct Obj;
-struct ObjClosure;
-struct ObjFunction;
-struct ObjNative;
-struct ObjString;
 
 // Could be done with std::variant.
 struct Value final {
