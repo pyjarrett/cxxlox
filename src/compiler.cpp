@@ -208,7 +208,7 @@ uint8_t Compiler::makeConstant(Value value)
 
 [[nodiscard]] uint8_t Compiler::identifierConstant(Token* name)
 {
-	return makeConstant(Value::makeObj(asObj(copyString(name->start, name->length))));
+	return makeConstant(makeValue(copyString(name->start, name->length)));
 }
 
 ///////////////////////////////////////////////////////////////////////////////

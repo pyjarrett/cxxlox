@@ -213,7 +213,7 @@ bool VM::callValue(Value callee, int argCount)
 				ObjClass* klass = callee.toObj()->toClass();
 
 				// Place the instance at the top of the stack after arg count is removed.
-				stackTop[-argCount - 1] = Value::makeObj(asObj(allocateObj<ObjInstance>(klass)));
+				stackTop[-argCount - 1] = makeValue(allocateObj<ObjInstance>(klass));
 				return true;
 			}
 			case ObjType::Closure:
@@ -307,7 +307,7 @@ bool VM::bindMethod(ObjClass* klass, ObjString* name)
 
 	// Pop instance and push the new method.
 	CL_UNUSED(pop());
-	push(Value::makeObj(asObj(boundMethod)));
+	push(makeValue(boundMethod));
 	return true;
 }
 
@@ -365,7 +365,7 @@ static void concatenate()
 	memcpy(&chars[a->length], &b->chars[0], b->length);
 	CL_UNUSED(vm.pop());
 	CL_UNUSED(vm.pop());
-	vm.push(Value::makeObj(asObj(takeString(chars, length))));
+	vm.push(makeValue(takeString(chars, length)));
 }
 
 InterpretResult VM::run()
@@ -453,7 +453,7 @@ InterpretResult VM::run()
 				push(result);
 			} break;
 			case OP_CLASS: {
-				push(Value::makeObj(asObj(allocateObj<ObjClass>(readString()))));
+				push(makeValue(allocateObj<ObjClass>(readString())));
 			} break;
 			case OP_METHOD: {
 				defineMethod(readString());
