@@ -66,6 +66,11 @@ void blackenObj(Obj* obj)
 #endif
 
 	switch (obj->type) {
+		case ObjType::BoundMethod:{
+			ObjBoundMethod* method = obj->to<ObjBoundMethod>();
+			markValue(&method->receiver);
+			markObject(method->method->asObj());
+		} break;
 		case ObjType::String:
 			break;
 		case ObjType::Native:

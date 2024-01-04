@@ -45,9 +45,16 @@ struct Upvalue {
 enum class FunctionType
 {
 	Function,
+	Method,
 
 	// Top level.
 	Script
+};
+
+// Tracker for the current class compiler to know if `this` is in a valid
+// context or not.
+struct ClassCompiler {
+	ClassCompiler* enclosing = nullptr;
 };
 
 // Tracks compilation of the top level and each Lox function.
@@ -70,8 +77,15 @@ struct Compiler {
 		// Allocate a local for use by the compiler.
 		Local* local = &locals[localCount++];
 		local->depth = 0;
-		local->name.start = ""; // So the user can't refer to it.
-		local->name.length = 0;
+		if (type != FunctionType::Function) {
+			local->name.start = "this";
+			local->name.length = 4;
+
+		}
+		else {
+			local->name.start = ""; // So the user can't refer to it.
+			local->name.length = 0;
+		}
 	}
 
 	// Deviation: was renamed endCompiler()
@@ -157,9 +171,13 @@ struct Compiler {
 	// active compilers for garbage collection.  Only one active chain of
 	// compilers is supported.
 	static Compiler* s_active;
+
+	// The currently active class compiler.
+	static ClassCompiler* s_classCompiler;
 };
 
 Compiler* Compiler::s_active = nullptr;
+ClassCompiler* Compiler::s_classCompiler = nullptr;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Garbage collection
@@ -562,6 +580,15 @@ void Compiler::classDeclaration()
 
 	parser.consume(TokenType::LeftBrace, "Expected an opening brace.");
 
+	// Tracks whether or not we are parsing inside a class.
+	ClassCompiler classCompiler;
+	if (s_classCompiler) {
+		s_classCompiler->enclosing = &classCompiler;
+	}
+	else {
+		s_classCompiler = &classCompiler;
+	}
+
 	while (!parser.check(TokenType::RightBrace) && !parser.check(TokenType::Eof)) {
 		method();
 	}
@@ -570,6 +597,8 @@ void Compiler::classDeclaration()
 
 	// Pop class name.
 	emitByte(OP_POP);
+
+	s_classCompiler = s_classCompiler->enclosing;
 }
 
 void Compiler::method()
@@ -577,7 +606,7 @@ void Compiler::method()
 	// Get method name.
 	parser.consume(TokenType::Identifier, "Expected a method name.");
 	const uint8_t methodName = identifierConstant(&parser.previous);
-	const FunctionType fnType = FunctionType::Function;
+	const FunctionType fnType = FunctionType::Method;
 	defineFunction(fnType);
 	emitBytes(OP_METHOD, methodName);
 }
@@ -921,8 +950,7 @@ static void dot(Compiler* compiler, [[maybe_unused]] bool canAssign)
 		// Put the right-hand-side on the stack.
 		compiler->expression();
 		compiler->emitBytes(OP_SET_PROPERTY, name);
-	}
-	else {
+	} else {
 		compiler->emitBytes(OP_GET_PROPERTY, name);
 	}
 }
@@ -1033,6 +1061,16 @@ static void variable(Compiler* compiler, bool canAssign)
 	compiler->namedVariable(compiler->parser.previous, canAssign);
 }
 
+static void this_(Compiler* compiler, bool canAssign)
+{
+	if (!Compiler::s_classCompiler) {
+		compiler->parser.error("Can't use 'this' outside of a class.");
+		return;
+	}
+
+	variable(compiler, canAssign);
+}
+
 static void literal(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
 	switch (compiler->parser.previous.type) {
@@ -1092,7 +1130,7 @@ static PrattRuleMap rules = {
 	{TokenType::Print, {nullptr, nullptr, PREC_NONE}},
 
 	{TokenType::Super, {nullptr, nullptr, PREC_NONE}},
-	{TokenType::This, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::This, {this_, nullptr, PREC_NONE}},
 	{TokenType::Nil, {literal, nullptr, PREC_NONE}},
 	{TokenType::True, {literal, nullptr, PREC_NONE}},
 	{TokenType::False, {literal, nullptr, PREC_NONE}},

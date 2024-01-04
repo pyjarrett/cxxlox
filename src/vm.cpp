@@ -34,6 +34,9 @@ static void freeObj(Obj* obj)
 #endif
 
 	switch (obj->type) {
+		case ObjType::BoundMethod: {
+			freeObj<ObjBoundMethod>(obj);
+		} break;
 		case ObjType::String: {
 			freeObj<ObjString>(obj);
 		} break;
@@ -199,6 +202,13 @@ bool VM::callValue(Value callee, int argCount)
 {
 	if (callee.isObj()) {
 		switch (callee.toObj()->type) {
+			case ObjType::BoundMethod: {
+				ObjBoundMethod* bound = callee.toObj()->to<ObjBoundMethod>();
+				// Place the `this` pointer for the object being called below
+				// the arguments in the stack.
+				stackTop[-argCount - 1] = bound->receiver;
+				return call(bound->method, argCount);
+			}
 			case ObjType::Class: {
 				ObjClass* klass = callee.toObj()->toClass();
 
@@ -280,6 +290,25 @@ void VM::defineMethod(cxxlox::ObjString* methodName)
 
 	// Remove method name.
 	CL_UNUSED(pop());
+}
+
+bool VM::bindMethod(ObjClass* klass, ObjString* name)
+{
+	CL_ASSERT(klass);
+	CL_ASSERT(name);
+
+	Value method;
+	if (!klass->methods.get(name, &method)) {
+		runtimeError(std::format("Unknown method {} on class {}", name->chars, klass->name->chars));
+		return false;
+	}
+
+	ObjBoundMethod* boundMethod = allocateObj<ObjBoundMethod>(peek(0), method.toObj()->to<ObjClosure>());
+
+	// Pop instance and push the new method.
+	CL_UNUSED(pop());
+	push(Value::makeObj(boundMethod->asObj()));
+	return true;
 }
 
 void VM::freeObjects()
@@ -539,8 +568,11 @@ InterpretResult VM::run()
 					push(value);
 					break;
 				}
-				runtimeError(std::format("Unknown property: {}", property->chars));
-				return InterpretResult::RuntimeError;
+
+				if (!bindMethod(instance->klass, property)) {
+					runtimeError(std::format("Unable to bind method: {} to class {}", property->chars, instance->klass->name->chars));
+					return InterpretResult::RuntimeError;
+				}
 			} break;
 			case OP_CONSTANT:
 				push(readConstant());

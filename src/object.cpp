@@ -49,6 +49,13 @@ ObjNative* Obj::toNative()
 	return reinterpret_cast<ObjNative*>(this);
 }
 
+ObjBoundMethod::ObjBoundMethod(Value receiver, ObjClosure* method)
+: receiver(receiver)
+, method(method)
+{
+	CL_ASSERT(method);
+}
+
 ObjClosure::ObjClosure(cxxlox::ObjFunction* fn)
 {
 	CL_ASSERT(fn);
@@ -124,6 +131,9 @@ const char* objTypeToString(ObjType type)
 std::ostream& operator<<(std::ostream& out, Obj* obj)
 {
 	switch (obj->type) {
+		case ObjType::BoundMethod:
+			out << obj->to<ObjBoundMethod>()->method->function;
+			break;
 		case ObjType::Function:
 			out << obj->toFunction();
 			break;

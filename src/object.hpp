@@ -11,6 +11,7 @@ namespace cxxlox {
 // Deviation: was OBJ_CLOSURE, OBJ_FUNCTION, OBJ_STRING
 enum class ObjType
 {
+	BoundMethod,
 	Class,
 	Closure,
 	Function,
@@ -125,6 +126,19 @@ struct ObjNative {
 
 	Obj obj;
 	NativeFunction function = nullptr;
+};
+
+struct ObjBoundMethod {
+	static constexpr ObjType type = ObjType::BoundMethod;
+
+	Obj obj;
+
+	Value receiver;
+	ObjClosure* method = nullptr;
+
+	ObjBoundMethod(Value receiver, ObjClosure* method);
+
+	[[nodiscard]] Obj* asObj() { return reinterpret_cast<Obj*>(this); }
 };
 
 // Wraps an ObjFunction and tracks upvalues.

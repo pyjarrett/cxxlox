@@ -5,7 +5,10 @@ var e = Empty();
 print e;
 
 class Point {
-    distance_from_origin() {}
+    add(p) {
+        this.x = this.x + p.x;
+        this.y = this.y + p.y;
+    }
     distance_to(p) {}
 }
 var p = Point();
@@ -13,5 +16,13 @@ p.x = 10;
 p.y = 20;
 
 print p;
+print p.x;
+print p.y;
+
+var q = Point();
+q.x = 30;
+q.y = 40;
+
+p.add(q);
 print p.x;
 print p.y;

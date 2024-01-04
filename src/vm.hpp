@@ -69,6 +69,7 @@ struct VM {
 	void closeUpvalues(Value* last);
 
 	void defineMethod(ObjString* methodName);
+	[[nodiscard]] bool bindMethod(ObjClass* klass, ObjString* name);
 
 	void runtimeError(const std::string& message);
 
