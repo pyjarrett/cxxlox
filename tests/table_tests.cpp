@@ -39,7 +39,7 @@ TEST_F(TableTest, SetWithResize)
 	for (int i = 0; i < 200; ++i) {
 		// Need to track the strings on the stack to prevent them from being GC'd
 		auto key = makeString(std::to_string(i));
-		VM::instance().push(Value::makeString(key));
+		VM::instance().push(makeValue(key));
 		table.set(makeString(std::to_string(i)), Value::makeNumber(i));
 	}
 

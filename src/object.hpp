@@ -64,6 +64,15 @@ template <typename T>
 	return reinterpret_cast<Obj*>(t);
 }
 
+// Wraps an Obj-like in a Value.
+// This conversion is similar to the book's `OBJ_VAL` macro.
+template <typename T>
+[[nodiscard]] Value makeValue(T* t)
+{
+	static_assert(isObjFormat<T>());
+	return Value::makeObj(asObj(t));
+}
+
 // An opaque header applied to all object subtypes to ensure every type has a
 // type and a pointer to the next type.
 struct Obj {

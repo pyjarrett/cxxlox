@@ -117,10 +117,10 @@ void VM::runtimeError(const std::string& message)
 
 void VM::defineNative(const char* name, NativeFunction fn)
 {
-	push(Value::makeString(copyString(name)));
+	push(makeValue(copyString(name)));
 
 	ObjNative* native = allocateObj<ObjNative>();
-	push(Value::makeNative(native));
+	push(makeValue(native));
 	native->function = fn;
 
 	// TODO: Why 0 and 1 here and not stackTop[-1] and stackTop [-2]?
@@ -416,7 +416,7 @@ InterpretResult VM::run()
 
 				// Wrap the function in a closure.
 				ObjClosure* closure = allocateObj<ObjClosure>(fn);
-				push(Value::makeClosure(closure));
+				push(makeValue(closure));
 				// Read all of the upvalue (local?, index) pairs and set up the
 				// environment for the closure.
 				for (int32_t i = 0; i < closure->function->upvalueCount; ++i) {
@@ -635,7 +635,7 @@ InterpretResult VM::interpret(const std::string& source)
 	VM::instance().push(Value::makeObj((Obj*)function));
 	ObjClosure* closure = allocateObj<ObjClosure>(function);
 	CL_UNUSED(pop());
-	push(Value::makeClosure(closure));
+	push(makeValue(closure));
 	CL_UNUSED(call(closure, 0));
 
 	return run();

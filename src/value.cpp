@@ -20,38 +20,10 @@ Value Value::makeNumber(double d)
 	return v;
 }
 
-Value Value::makeString(ObjString* str)
-{
-	Value v {.type = ValueType::Obj};
-	v.as.obj = reinterpret_cast<Obj*>(str);
-	return v;
-}
-
 Value Value::makeObj(Obj* obj)
 {
 	Value v {.type = ValueType::Obj};
 	v.as.obj = obj;
-	return v;
-}
-
-Value Value::makeFunction(ObjFunction* fn)
-{
-	Value v {.type = ValueType::Obj};
-	v.as.obj = reinterpret_cast<Obj*>(fn);
-	return v;
-}
-
-Value Value::makeClosure(ObjClosure* fn)
-{
-	Value v {.type = ValueType::Obj};
-	v.as.obj = reinterpret_cast<Obj*>(fn);
-	return v;
-}
-
-Value Value::makeNative(ObjNative* fn)
-{
-	Value v {.type = ValueType::Obj};
-	v.as.obj = reinterpret_cast<Obj*>(fn);
 	return v;
 }
 

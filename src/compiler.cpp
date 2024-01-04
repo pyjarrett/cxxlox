@@ -666,7 +666,7 @@ void Compiler::defineFunction(FunctionType type)
 	// Close up the function
 	ObjFunction* fn = compiler.end();
 
-	emitBytes(OP_CLOSURE, makeConstant(Value::makeFunction(fn)));
+	emitBytes(OP_CLOSURE, makeConstant(makeValue(fn)));
 
 	// OP_CLOSURE is a variable sized instruction which includes bytes following
 	// it describing upvalues, written as (local, index) pairs.
@@ -1053,7 +1053,7 @@ static void string(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
 	const std::string_view previous = compiler->parser.previous.view();
 	const std::string_view withoutQuotes = previous.substr(1, previous.length() - 2);
-	compiler->emitConstant(Value::makeString(copyString(withoutQuotes.data(), withoutQuotes.length())));
+	compiler->emitConstant(makeValue(copyString(withoutQuotes.data(), withoutQuotes.length())));
 }
 
 static void variable(Compiler* compiler, bool canAssign)

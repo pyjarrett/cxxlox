@@ -185,7 +185,7 @@ bool isObjType(Value value, ObjType type)
 	str->chars = chars;
 	str->length = length;
 	str->hash = hash;
-	VM::instance().push(Value::makeString(str));
+	VM::instance().push(makeValue(str));
 	VM::instance().intern(str);
 	CL_UNUSED(VM::instance().pop());
 	return str;

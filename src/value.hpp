@@ -36,11 +36,7 @@ struct Value final {
 	// Creation helpers
 	[[nodiscard]] static Value makeBool(bool b);
 	[[nodiscard]] static Value makeNumber(double d);
-	[[nodiscard]] static Value makeString(ObjString* str);
 	[[nodiscard]] static Value makeObj(Obj* obj);
-	[[nodiscard]] static Value makeFunction(ObjFunction* fn);
-	[[nodiscard]] static Value makeClosure(ObjClosure* closure);
-	[[nodiscard]] static Value makeNative(ObjNative* fn);
 	[[nodiscard]] static Value makeNil();
 
 	// Runtime type conversions.  These should be checked with the associated
