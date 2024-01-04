@@ -24,13 +24,13 @@ struct ObjNative;
 struct ObjString;
 
 // Could be done with std::variant.
-struct Value {
+struct Value final {
 	ValueType type = ValueType::Nil;
 	union
 	{
 		bool boolean;
 		double number;
-		Obj* obj;
+		Obj* obj = nullptr;
 	} as;
 
 	// Creation helpers
