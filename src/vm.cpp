@@ -22,6 +22,9 @@ static auto programStart = ClockType::now();
 
 static Value clockNative(int argCount, Value* args)
 {
+	CL_UNUSED(argCount);
+	CL_UNUSED(args);
+
 	const auto dt = std::chrono::duration_cast<std::chrono::milliseconds>(ClockType::now() - programStart);
 	return Value::makeNumber(dt.count() / 1'000.0);
 }
