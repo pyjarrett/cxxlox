@@ -671,7 +671,7 @@ void Compiler::defineFunction(FunctionType type)
 	// OP_CLOSURE is a variable sized instruction which includes bytes following
 	// it describing upvalues, written as (local, index) pairs.
 	for (int32_t i = 0; i < fn->upvalueCount; ++i) {
-		emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+		emitByte(compiler.upvalues[i].isLocal ? 1u : 0u);
 		emitByte(compiler.upvalues[i].index);
 	}
 
@@ -1003,6 +1003,7 @@ static void binary(Compiler* compiler, [[maybe_unused]] bool canAssign)
 
 static void call(Compiler* compiler, bool canAssign)
 {
+	CL_UNUSED(canAssign);
 	const uint8_t argCount = argumentList(compiler);
 	compiler->emitBytes(OP_CALL, argCount);
 }

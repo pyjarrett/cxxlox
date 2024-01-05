@@ -170,7 +170,7 @@ bool isObjType(Value value, ObjType type)
 {
 	CL_ASSERT(chars != nullptr);
 	uint32_t hash = 2166136261u;
-	for (int i = 0; i < length; ++i) {
+	for (uint32_t i = 0; i < length; ++i) {
 		hash ^= static_cast<uint32_t>(chars[i]);
 		hash *= 16777619;
 	}
@@ -196,7 +196,7 @@ ObjString* copyString(const char* chars)
 	if (chars == nullptr) {
 		chars = "";
 	}
-	return copyString(chars, strnlen(chars, ObjString::kMaxStringSize));
+	return copyString(chars, static_cast<uint32_t>(strnlen(chars, ObjString::kMaxStringSize)));
 }
 
 ObjString* copyString(const char* chars, uint32_t length)
