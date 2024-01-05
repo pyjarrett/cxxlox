@@ -52,12 +52,18 @@
 #endif
 
 #define CL_UNUSED(expr) (void)(expr)
-#define CL_FATAL(message)                                \
-	do {                                                 \
+#define CL_FATAL(message)                                  \
+	do {                                                   \
 		std::cout << "FATAL ERROR: " message << std::endl; \
-		CL_BREAKPOINT();                                 \
-		std::abort();                                    \
+		CL_BREAKPOINT();                                   \
+		std::abort();                                      \
 	} while (0)
+
+#define CL_PROHIBIT_MOVE_AND_COPY(name)    \
+	name(const name&) = delete;            \
+	name& operator=(const name&) = delete; \
+	name(name&&) = delete;                 \
+	name& operator=(name&&) = delete
 
 // A macro to be more forceful with the compiler on inlining, since
 // I wrapped some things like the current chunk and current frame in functions.

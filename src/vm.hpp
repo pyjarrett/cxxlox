@@ -90,6 +90,7 @@ struct VM {
 private:
 	VM();
 	~VM();
+	CL_PROHIBIT_MOVE_AND_COPY(VM);
 
 	[[nodiscard]] InterpretResult run();
 

@@ -124,14 +124,7 @@ struct ObjFunction {
 
 	ObjFunction() = default;
 	~ObjFunction() = default;
-
-	// Should be dealing with pointers to ObjFunction only, so prohibit moving
-	// and copying.
-	ObjFunction(const ObjFunction&) = delete;
-	ObjFunction& operator=(const ObjFunction&) = delete;
-
-	ObjFunction(ObjFunction&&) = delete;
-	ObjFunction& operator=(ObjFunction&&) = delete;
+	CL_PROHIBIT_MOVE_AND_COPY(ObjFunction);
 };
 
 using NativeFunction = Value (*)(int argCount, Value* args);
@@ -142,6 +135,9 @@ struct ObjNative {
 
 	Obj obj;
 	NativeFunction function = nullptr;
+
+	ObjNative() = default;
+	CL_PROHIBIT_MOVE_AND_COPY(ObjNative);
 };
 
 struct ObjBoundMethod {
@@ -153,6 +149,7 @@ struct ObjBoundMethod {
 	ObjClosure* method = nullptr;
 
 	ObjBoundMethod(Value receiver, ObjClosure* method);
+	CL_PROHIBIT_MOVE_AND_COPY(ObjBoundMethod);
 };
 
 // Wraps an ObjFunction and tracks upvalues.
@@ -171,6 +168,7 @@ struct ObjClosure {
 
 	explicit ObjClosure(ObjFunction* fn);
 	~ObjClosure() = default;
+	CL_PROHIBIT_MOVE_AND_COPY(ObjClosure);
 };
 
 struct ObjClass {
@@ -184,6 +182,7 @@ struct ObjClass {
 	Table methods;
 
 	explicit ObjClass(ObjString* name);
+	CL_PROHIBIT_MOVE_AND_COPY(ObjClass);
 };
 
 struct ObjInstance {
@@ -195,6 +194,7 @@ struct ObjInstance {
 	Table fields;
 
 	explicit ObjInstance(ObjClass* klass);
+	CL_PROHIBIT_MOVE_AND_COPY(ObjInstance);
 };
 
 // Every ObjString owns its own characters.
@@ -209,15 +209,7 @@ struct ObjString {
 
 	ObjString() = default;
 	~ObjString();
-
-	// Disable copy since memory is being managed by ObjString, which should
-	// only be dynamically allocated.
-	ObjString(const ObjString&) = delete;
-	ObjString& operator=(const ObjString&) = delete;
-
-	// Move could be allowed, but is explicitly disabled for now.
-	ObjString(ObjString&&) = delete;
-	ObjString& operator=(ObjString&&) = delete;
+	CL_PROHIBIT_MOVE_AND_COPY(ObjString);
 };
 
 // Tracks the location of an upvalue.
@@ -241,6 +233,7 @@ struct ObjUpvalue {
 
 	explicit ObjUpvalue(Value* slot);
 	~ObjUpvalue() = default;
+	CL_PROHIBIT_MOVE_AND_COPY(ObjUpvalue);
 };
 
 [[nodiscard]] ObjString* copyString(const char* chars);

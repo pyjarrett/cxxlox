@@ -63,6 +63,10 @@ struct Chunk {
 	Vector<uint8_t> code;
 	Vector<Value> constants;
 	Vector<uint32_t> lines;
+
+	Chunk() = default;
+	~Chunk() = default;
+	CL_PROHIBIT_MOVE_AND_COPY(Chunk);
 };
 static_assert(sizeof(Chunk) == 3 * sizeof(Vector<char>));
 
