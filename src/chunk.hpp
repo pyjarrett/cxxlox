@@ -62,7 +62,7 @@ struct Chunk {
 
 	Vector<uint8_t> code;
 	Vector<Value> constants;
-	Vector<int32_t> lines;
+	Vector<uint32_t> lines;
 };
 static_assert(sizeof(Chunk) == 3 * sizeof(Vector<char>));
 
