@@ -30,7 +30,7 @@ public:
 	Table(Table&&) = delete;
 	Table& operator=(Table&&) = delete;
 
-	ObjString* findKey(const char* chars, int32_t length, uint32_t hash) const;
+	ObjString* findKey(const char* chars, uint32_t length, uint32_t hash) const;
 
 	bool set(ObjString* key, Value value);
 	bool get(ObjString* key, Value* outValue);

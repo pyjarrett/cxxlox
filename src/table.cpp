@@ -32,7 +32,7 @@ Table::~Table()
 	delete[] entries_;
 }
 
-ObjString* Table::findKey(const char* chars, int32_t length, uint32_t hash) const
+ObjString* Table::findKey(const char* chars, uint32_t length, uint32_t hash) const
 {
 	if (count_ == 0) {
 		return nullptr;
