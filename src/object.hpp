@@ -200,9 +200,10 @@ struct ObjInstance {
 // Every ObjString owns its own characters.
 struct ObjString {
 	static constexpr ObjType type = ObjType::String;
+	static constexpr size_t kMaxStringSize = 4096;
 
 	Obj obj;
-	int length = 0;
+	uint32_t length = 0;
 	char* chars = nullptr;
 	uint32_t hash = 0;
 

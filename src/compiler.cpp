@@ -1053,7 +1053,13 @@ static void string(Compiler* compiler, [[maybe_unused]] bool canAssign)
 {
 	const std::string_view previous = compiler->parser.previous.view();
 	const std::string_view withoutQuotes = previous.substr(1, previous.length() - 2);
-	compiler->emitConstant(makeValue(copyString(withoutQuotes.data(), withoutQuotes.length())));
+
+	if (withoutQuotes.length() > ObjString::kMaxStringSize) {
+		compiler->parser.error("String exceeds length limits.");
+	}
+	else {
+		compiler->emitConstant(makeValue(copyString(withoutQuotes.data(), static_cast<uint32_t>(withoutQuotes.length()))));
+	}
 }
 
 static void variable(Compiler* compiler, bool canAssign)

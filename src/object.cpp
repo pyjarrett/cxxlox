@@ -193,12 +193,10 @@ bool isObjType(Value value, ObjType type)
 
 ObjString* copyString(const char* chars)
 {
-	constexpr size_t kMaxStringLength = 4096;
-
 	if (chars == nullptr) {
 		chars = "";
 	}
-	return copyString(chars, strnlen(chars, kMaxStringLength));
+	return copyString(chars, strnlen(chars, ObjString::kMaxStringSize));
 }
 
 ObjString* copyString(const char* chars, uint32_t length)
