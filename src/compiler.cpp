@@ -55,6 +55,9 @@ enum class FunctionType
 // context or not.
 struct ClassCompiler {
 	ClassCompiler* enclosing = nullptr;
+
+	ClassCompiler() = default;
+	CL_PROHIBIT_MOVE_AND_COPY(ClassCompiler);
 };
 
 // Tracks compilation of the top level and each Lox function.
@@ -174,6 +177,8 @@ struct Compiler {
 
 	// The currently active class compiler.
 	static ClassCompiler* s_classCompiler;
+
+	CL_PROHIBIT_MOVE_AND_COPY(Compiler);
 };
 
 Compiler* Compiler::s_active = nullptr;
