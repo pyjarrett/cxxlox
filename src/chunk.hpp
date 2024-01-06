@@ -21,6 +21,10 @@ enum OpCode : uint8_t
 	OP_JUMP_IF_FALSE,
 	OP_LOOP,
 	OP_CALL,
+
+	// Optimized function for method invocations.
+	OP_INVOKE,
+
 	OP_CLOSURE,
 	OP_CLOSE_UPVALUE,
 	OP_POP,

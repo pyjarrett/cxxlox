@@ -87,8 +87,7 @@ struct Compiler {
 			local->name.start = "this";
 			local->name.length = 4;
 
-		}
-		else {
+		} else {
 			local->name.start = ""; // So the user can't refer to it.
 			local->name.length = 0;
 		}
@@ -286,8 +285,7 @@ void Compiler::emitReturn()
 	if (type == FunctionType::Initializer) {
 		// The "this" pointer is stored at location 0.
 		emitBytes(OP_GET_LOCAL, 0u);
-	}
-	else {
+	} else {
 		// Implicitly return nil if no return value is provided.
 		emitByte(OP_NIL);
 	}
@@ -599,8 +597,7 @@ void Compiler::classDeclaration()
 	ClassCompiler classCompiler;
 	if (s_classCompiler) {
 		s_classCompiler->enclosing = &classCompiler;
-	}
-	else {
+	} else {
 		s_classCompiler = &classCompiler;
 	}
 
@@ -971,6 +968,10 @@ static void dot(Compiler* compiler, [[maybe_unused]] bool canAssign)
 		// Put the right-hand-side on the stack.
 		compiler->expression();
 		compiler->emitBytes(OP_SET_PROPERTY, name);
+	} else if (parser.match(TokenType::LeftParen)) {
+		const uint8_t argCount = argumentList(compiler);
+		compiler->emitBytes(OP_INVOKE, name);
+		compiler->emitByte(argCount);
 	} else {
 		compiler->emitBytes(OP_GET_PROPERTY, name);
 	}
@@ -1078,9 +1079,9 @@ static void string(Compiler* compiler, [[maybe_unused]] bool canAssign)
 
 	if (withoutQuotes.length() > ObjString::kMaxStringSize) {
 		compiler->parser.error("String exceeds length limits.");
-	}
-	else {
-		compiler->emitConstant(makeValue(copyString(withoutQuotes.data(), static_cast<uint32_t>(withoutQuotes.length()))));
+	} else {
+		compiler->emitConstant(
+			makeValue(copyString(withoutQuotes.data(), static_cast<uint32_t>(withoutQuotes.length()))));
 	}
 }
 

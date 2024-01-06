@@ -1,0 +1,22 @@
+class FieldInvocation {
+    init() {
+        fun defaultCallback() {
+            print "Default callback";
+        }
+        this.callback = defaultCallback;
+    }
+
+    method() {
+        print "A method call";
+    }
+}
+
+fun anotherCallback() {
+    print "Another callback";
+}
+
+var fi = FieldInvocation();
+fi.callback();
+fi.callback = anotherCallback;
+fi.callback();
+fi.method();

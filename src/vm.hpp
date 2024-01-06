@@ -64,6 +64,8 @@ struct VM {
 
 	[[nodiscard]] bool call(ObjClosure* closure, int argCount);
 	[[nodiscard]] bool callValue(Value callee, int argCount);
+	[[nodiscard]] bool invoke(ObjString* method, int argCount);
+	[[nodiscard]] bool invokeMethod(ObjClass* klass, ObjString* name, int argCount);
 
 	[[nodiscard]] ObjUpvalue* captureUpvalue(Value* local);
 	void closeUpvalues(Value* last);

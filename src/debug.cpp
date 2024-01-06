@@ -87,6 +87,18 @@ void disassembleChunk(const Chunk& chunk, const char* name)
 	return offset;
 }
 
+[[nodiscard]] static int32_t invokeInstruction(const char* name, const Chunk& chunk, int32_t offset)
+{
+	const auto constant = chunk.code[offset + 1];
+	const auto argCount = chunk.code[offset + 2];
+
+	std::cout << std::format("{:<16} {} ({} args)", name, constant, argCount) << chunk.constants[constant] << '\n';
+
+	// Skip the instruction (byte 1) and the method name (byte 2) and the arg count (byte 3).
+	return offset + 3;
+
+}
+
 int32_t disassembleInstruction(const Chunk& chunk, int32_t offset)
 {
 	std::cout << std::format("{:04} ", offset);
@@ -151,6 +163,8 @@ int32_t disassembleInstruction(const Chunk& chunk, int32_t offset)
 			return jumpInstruction("OP_LOOP", -1, chunk, offset);
 		case OP_CALL:
 			return byteInstruction("OP_CALL", chunk, offset);
+		case OP_INVOKE:
+			return invokeInstruction("OP_INVOKE", chunk, offset);
 		case OP_CLOSURE:
 			return closureInstruction(chunk, offset);
 		case OP_RETURN:

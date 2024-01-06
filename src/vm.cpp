@@ -254,6 +254,33 @@ bool VM::callValue(Value callee, int argCount)
 	return false;
 }
 
+bool VM::invoke(cxxlox::ObjString* method, int argCount)
+{
+	// The object to invoke the method on will be below the argCount on the stack.
+	Value receiver = peek(argCount);
+	ObjInstance* instance = receiver.toObj()->to<ObjInstance>();
+
+	// Catch when a field is actually a function being called.
+	Value value;
+	if (instance->fields.get(method, &value)) {
+		stackTop[-argCount - 1] = value;
+		return callValue(value, argCount);
+	}
+
+	return invokeMethod(instance->klass, method, argCount);
+}
+
+bool VM::invokeMethod(cxxlox::ObjClass* klass, cxxlox::ObjString* name, int argCount)
+{
+	Value method;
+	if (!klass->methods.get(name, &method)) {
+		runtimeError(std::format("Method {} not found on {}", name->chars, klass->name->chars));
+		return false;
+	}
+
+	return call(method.toObj()->to<ObjClosure>(), argCount);
+}
+
 ObjUpvalue* VM::captureUpvalue(Value* local)
 {
 	// The value pointed to by local might already be capture as an upvalue.
@@ -426,6 +453,14 @@ InterpretResult VM::run()
 				}
 				// Deviation: no cached `frame` to update (maybe this is a speed issue?)
 			} break;
+			case OP_INVOKE: {
+				ObjString* method = readString();
+				const uint8_t argCount = readByte();
+				if (!invoke(method, argCount)) {
+					return InterpretResult::RuntimeError;
+				}
+								// Deviation: no cached `frame` to update (maybe this is a speed issue?)
+			}break;
 			case OP_CLOSURE: {
 				ObjFunction* fn = readConstant().toObj()->toFunction();
 
