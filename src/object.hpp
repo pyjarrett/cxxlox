@@ -49,8 +49,8 @@ template <typename T>
 [[nodiscard]] constexpr bool isObjFormat()
 {
 	// clang-format off
-	return (offsetof(T, obj) == 0)
-		&& std::is_standard_layout_v<T>
+	return // (offsetof(T, obj) == 0) // TODO: Need replacement, offsetof isn't constexpr
+		   std::is_standard_layout_v<T>
 		&& std::is_same_v<decltype(typeOf<T>()), ObjType>;
 	// clang-format on
 }
