@@ -639,13 +639,13 @@ void Compiler::varDeclaration()
 }
 
 // Deviation: was function()
-void Compiler::defineFunction(FunctionType type)
+void Compiler::defineFunction(FunctionType fnType)
 {
 	// Maximum number of function parameters.
 	constexpr int32_t kMaxFunctionArity = 255;
 
 	// Each function gets compiled by a separate compiler.
-	Compiler compiler(this, type, this->parser);
+	Compiler compiler(this, fnType, this->parser);
 
 	compiler.beginScope();
 
