@@ -47,6 +47,9 @@ enum class FunctionType
 	Function,
 	Method,
 
+	// "Constructor" for instances of class types.
+	Initializer,
+
 	// Top level.
 	Script
 };
@@ -280,8 +283,15 @@ void Compiler::patchJump(int offset)
 
 void Compiler::emitReturn()
 {
-	// Implicitly return nil if no return value is provided.
-	emitByte(OP_NIL);
+	if (type == FunctionType::Initializer) {
+		// The "this" pointer is stored at location 0.
+		emitBytes(OP_GET_LOCAL, 0u);
+	}
+	else {
+		// Implicitly return nil if no return value is provided.
+		emitByte(OP_NIL);
+	}
+
 	emitByte(OP_RETURN);
 }
 
@@ -611,7 +621,11 @@ void Compiler::method()
 	// Get method name.
 	parser.consume(TokenType::Identifier, "Expected a method name.");
 	const uint8_t methodName = identifierConstant(&parser.previous);
-	const FunctionType fnType = FunctionType::Method;
+
+	FunctionType fnType = FunctionType::Method;
+	if (parser.previous.length == 4 && parser.previous.view() == "init") {
+		fnType = FunctionType::Initializer;
+	}
 	defineFunction(fnType);
 	emitBytes(OP_METHOD, methodName);
 }
@@ -832,6 +846,8 @@ void Compiler::returnStatement()
 {
 	if (type == FunctionType::Script) {
 		parser.error("Cannot return from top-level code.");
+	} else if (type == FunctionType::Initializer) {
+		parser.error("Cannot return from an initializer.");
 	}
 
 	if (parser.match(TokenType::Semicolon)) {

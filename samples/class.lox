@@ -4,25 +4,27 @@ print Empty;
 var e = Empty();
 print e;
 
-class Point {
-    add(p) {
+class Vector {
+    init(x, y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    addVector(p) {
         this.x = this.x + p.x;
         this.y = this.y + p.y;
     }
     distance_to(p) {}
 }
-var p = Point();
-p.x = 10;
-p.y = 20;
-
+var p = Vector(10, 20);
 print p;
 print p.x;
 print p.y;
 
-var q = Point();
+var q = Vector(0, 0);
 q.x = 30;
 q.y = 40;
 
-p.add(q);
+p.addVector(q);
 print p.x;
 print p.y;

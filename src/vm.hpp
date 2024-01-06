@@ -127,6 +127,10 @@ private:
 	// A list of live upvalues.
 	ObjUpvalue* openUpvalues = nullptr;
 
+	/// Interned "init" string for checking for an initializer when creating
+	/// new objects of a type.
+	ObjString* initString = nullptr;
+
 	bool loadedNativeFunctions = false;
 
 	// Garbage collector tracking and tuning.

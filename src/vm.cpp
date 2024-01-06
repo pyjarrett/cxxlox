@@ -80,6 +80,7 @@ VM::VM()
 
 VM::~VM()
 {
+	initString = nullptr;
 	freeObjects();
 }
 
@@ -217,6 +218,17 @@ bool VM::callValue(Value callee, int argCount)
 
 				// Place the instance at the top of the stack after arg count is removed.
 				stackTop[-argCount - 1] = makeValue(allocateObj<ObjInstance>(klass));
+
+				// Call class initializer on the new object.
+				Value initMethod;
+				if (klass->methods.get(initString, &initMethod)) {
+					return call(initMethod.toObj()->to<ObjClosure>(), argCount);
+				}
+				else if (argCount != 0) {
+					runtimeError(std::format("Expected 0 parameters but found {} parameters", argCount));
+					return false;
+				}
+
 				return true;
 			}
 			case ObjType::Closure:
@@ -620,11 +632,13 @@ InterpretResult VM::interpret(const std::string& source)
 	std::cout.setf(std::ios::unitbuf);
 #endif
 
-	// Deviation: Cannot load native functions in c'tor since allocateObj needs
-	// to ask the VM to track the native function.
+	// Deviation: Cannot create Obj-like objects in c'tor since allocateObj needs
+	// to ask the VM to track the object.
 	if (!loadedNativeFunctions) {
 		loadNativeFunctions();
 		loadedNativeFunctions = true;
+
+		initString = copyString("init", 4);
 	}
 
 	ObjFunction* function = compile(source);
@@ -700,6 +714,7 @@ void VM::markRoots()
 
 	globals.mark();
 	markActiveCompilers();
+	markObject(asObj(initString));
 }
 
 // Expand outward from the roots to trace and find all referenced objects.
