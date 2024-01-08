@@ -114,7 +114,7 @@ struct Compiler {
 
 	void markInitialized();
 	void defineVariable(uint8_t global);
-	void namedVariable(Token name, bool canAssign);
+	void getOrSetNamedVariable(Token name, bool canBeAssignment);
 
 	[[nodiscard]] uint8_t parseVariable(const char* errorMessage);
 
@@ -526,7 +526,9 @@ void Compiler::defineVariable(uint8_t global)
 
 // Emit the variable and appropriate op code to get or set a variable,
 // depending on if this is an assignment.
-void Compiler::namedVariable(Token name, bool canAssign)
+//
+// Deviation: should be `namedVariable()`
+void Compiler::getOrSetNamedVariable(Token name, bool canBeAssignment)
 {
 	// Decide if this is an operation on a global or a local.
 	uint8_t getOp, setOp;
@@ -546,7 +548,7 @@ void Compiler::namedVariable(Token name, bool canAssign)
 
 	CL_ASSERT(arg >= 0 && arg <= std::numeric_limits<uint8_t>::max());
 
-	if (canAssign && parser.match(TokenType::Equal)) {
+	if (canBeAssignment && parser.match(TokenType::Equal)) {
 		expression();
 		emitBytes(setOp, static_cast<uint8_t>(arg));
 	} else {
@@ -601,19 +603,19 @@ void Compiler::classDeclaration()
 		parser.consume(TokenType::Identifier, "Expected a superclass name.");
 		// Deviation: was variable(false)
 		// Load superclass variable onto the stack.
-		namedVariable(parser.previous, false);
+		getOrSetNamedVariable(parser.previous, false);
 
 		if (identifiersEqual(&parser.previous, &className)) {
 			parser.error("A class cannot inherit from itself {} < {}");
 		}
 
 		// Load the subclass name onto the stack.
-		namedVariable(className, false);
+		getOrSetNamedVariable(className, false);
 		emitByte(OP_INHERIT);
 	}
 
 	// Put class name back on the stack.
-	namedVariable(className, false);
+	getOrSetNamedVariable(className, false);
 
 	parser.consume(TokenType::LeftBrace, "Expected an opening brace.");
 
@@ -1103,7 +1105,7 @@ static void string(Compiler* compiler, [[maybe_unused]] bool canAssign)
 
 static void variable(Compiler* compiler, bool canAssign)
 {
-	compiler->namedVariable(compiler->parser.previous, canAssign);
+	compiler->getOrSetNamedVariable(compiler->parser.previous, canAssign);
 }
 
 static void this_(Compiler* compiler, bool canAssign)
