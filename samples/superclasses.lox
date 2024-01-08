@@ -1,0 +1,15 @@
+class Parent {
+    parentMethod() {
+        print "Parent method";
+    }
+}
+
+class Child < Parent {
+    childMethod() {
+        print "Child method";
+    }
+}
+
+var child = Child();
+child.childMethod();
+child.parentMethod();

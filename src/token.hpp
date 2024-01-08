@@ -81,7 +81,7 @@ struct Token {
 static_assert(sizeof(Token) == 24);
 static_assert(alignof(Token) == 8);
 
-[[nodiscard]] bool identifiersEqual(Token* a, Token* b);
+[[nodiscard]] bool identifiersEqual(const Token* a, const Token* b);
 
 }
 

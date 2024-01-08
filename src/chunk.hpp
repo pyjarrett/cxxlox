@@ -42,6 +42,9 @@ enum OpCode : uint8_t
 	OP_RETURN,
 	OP_CLASS,
 
+	// Applies inheritance to a class.
+	OP_INHERIT,
+
 	// Creates a method on the class at the top of the stack.
 	OP_METHOD,
 

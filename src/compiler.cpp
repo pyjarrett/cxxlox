@@ -588,11 +588,6 @@ void Compiler::classDeclaration()
 	// Define the class name, so that class internals to reference the class
 	defineVariable(nameConstant);
 
-	// Put class name back on the stack.
-	namedVariable(className, false);
-
-	parser.consume(TokenType::LeftBrace, "Expected an opening brace.");
-
 	// Tracks whether or not we are parsing inside a class.
 	ClassCompiler classCompiler;
 	if (s_classCompiler) {
@@ -600,6 +595,27 @@ void Compiler::classDeclaration()
 	} else {
 		s_classCompiler = &classCompiler;
 	}
+
+	// Look for inheritance.
+	if (parser.match(TokenType::Less)) {
+		parser.consume(TokenType::Identifier, "Expected a superclass name.");
+		// Deviation: was variable(false)
+		// Load superclass variable onto the stack.
+		namedVariable(parser.previous, false);
+
+		if (identifiersEqual(&parser.previous, &className)) {
+			parser.error("A class cannot inherit from itself {} < {}");
+		}
+
+		// Load the subclass name onto the stack.
+		namedVariable(className, false);
+		emitByte(OP_INHERIT);
+	}
+
+	// Put class name back on the stack.
+	namedVariable(className, false);
+
+	parser.consume(TokenType::LeftBrace, "Expected an opening brace.");
 
 	while (!parser.check(TokenType::RightBrace) && !parser.check(TokenType::Eof)) {
 		method();

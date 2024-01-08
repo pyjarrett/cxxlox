@@ -179,6 +179,8 @@ int32_t disassembleInstruction(const Chunk& chunk, int32_t offset)
 			return constantInstruction("OP_CLASS", chunk, offset);
 		case OP_METHOD:
 			return constantInstruction("OP_METHOD", chunk, offset);
+		case OP_INHERIT:
+			return simpleInstruction("OP_INHERIT", offset);
 		default:
 			std::cout << "Unknown opcode: " << int(instruction) << '\n';
 			return offset + 1;

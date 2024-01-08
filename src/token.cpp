@@ -5,7 +5,7 @@
 namespace cxxlox {
 
 // Deviation: was in compiler.cpp
-[[nodiscard]] bool identifiersEqual(Token* a, Token* b)
+bool identifiersEqual(const Token* a, const Token* b)
 {
 	if (a->length != b->length) {
 		return false;

@@ -223,8 +223,7 @@ bool VM::callValue(Value callee, int argCount)
 				Value initMethod;
 				if (klass->methods.get(initString, &initMethod)) {
 					return call(initMethod.toObj()->to<ObjClosure>(), argCount);
-				}
-				else if (argCount != 0) {
+				} else if (argCount != 0) {
 					runtimeError(std::format("Expected 0 parameters but found {} parameters", argCount));
 					return false;
 				}
@@ -459,8 +458,8 @@ InterpretResult VM::run()
 				if (!invoke(method, argCount)) {
 					return InterpretResult::RuntimeError;
 				}
-								// Deviation: no cached `frame` to update (maybe this is a speed issue?)
-			}break;
+				// Deviation: no cached `frame` to update (maybe this is a speed issue?)
+			} break;
 			case OP_CLOSURE: {
 				ObjFunction* fn = readConstant().toObj()->toFunction();
 
@@ -507,7 +506,23 @@ InterpretResult VM::run()
 			} break;
 			case OP_METHOD: {
 				defineMethod(readString());
-			}break;
+			} break;
+			case OP_INHERIT: {
+				// Copy-down inheritance.
+				// Copy all methods down from the superclass to the subclass.
+				Value superclass = peek(1);
+
+				if (!superclass.toObj()->is<ObjClass>()) {
+					runtimeError("Can only inherit from a class.");
+					return InterpretResult::RuntimeError;
+				}
+
+				ObjClass* parent = superclass.toObj()->to<ObjClass>();
+				ObjClass* child = peek(0).toObj()->to<ObjClass>();
+
+				child->methods.addAll(superclass.toObj()->to<ObjClass>()->methods);
+				CL_UNUSED(pop());  // superclass
+			} break;
 			case OP_ADD:
 				if (isObjType(peek(0), ObjType::String) && isObjType(peek(1), ObjType::String)) {
 					concatenate();
@@ -614,13 +629,15 @@ InterpretResult VM::run()
 				// and the object is on the stack.
 				ObjInstance* instance = peek(0).toObj()->toInstance();
 				if (instance->fields.get(property, &value)) {
-					CL_UNUSED(pop());  // Remove the instance.
+					CL_UNUSED(pop()); // Remove the instance.
 					push(value);
 					break;
 				}
 
 				if (!bindMethod(instance->klass, property)) {
-					runtimeError(std::format("Unable to bind method: {} to class {}", property->chars, instance->klass->name->chars));
+					runtimeError(std::format("Unable to bind method: {} to class {}",
+						property->chars,
+						instance->klass->name->chars));
 					return InterpretResult::RuntimeError;
 				}
 			} break;
