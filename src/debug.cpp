@@ -165,6 +165,8 @@ int32_t disassembleInstruction(const Chunk& chunk, int32_t offset)
 			return byteInstruction("OP_CALL", chunk, offset);
 		case OP_INVOKE:
 			return invokeInstruction("OP_INVOKE", chunk, offset);
+		case OP_SUPER_INVOKE:
+			return invokeInstruction("OP_SUPER_INVOKE", chunk, offset);
 		case OP_CLOSURE:
 			return closureInstruction(chunk, offset);
 		case OP_RETURN:
@@ -181,6 +183,8 @@ int32_t disassembleInstruction(const Chunk& chunk, int32_t offset)
 			return constantInstruction("OP_METHOD", chunk, offset);
 		case OP_INHERIT:
 			return simpleInstruction("OP_INHERIT", offset);
+		case OP_GET_SUPER:
+			return constantInstruction("OP_GET_SUPER", chunk, offset);
 		default:
 			std::cout << "Unknown opcode: " << int(instruction) << '\n';
 			return offset + 1;

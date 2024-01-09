@@ -269,6 +269,7 @@ bool VM::invoke(cxxlox::ObjString* method, int argCount)
 	return invokeMethod(instance->klass, method, argCount);
 }
 
+// Deviation: invokeFromClass
 bool VM::invokeMethod(cxxlox::ObjClass* klass, cxxlox::ObjString* name, int argCount)
 {
 	Value method;
@@ -450,7 +451,7 @@ InterpretResult VM::run()
 				if (!callValue(peek(numArgs), numArgs)) {
 					return InterpretResult::RuntimeError;
 				}
-				// Deviation: no cached `frame` to update (maybe this is a speed issue?)
+				// Deviation: no cached `frame` to update
 			} break;
 			case OP_INVOKE: {
 				ObjString* method = readString();
@@ -458,8 +459,17 @@ InterpretResult VM::run()
 				if (!invoke(method, argCount)) {
 					return InterpretResult::RuntimeError;
 				}
-				// Deviation: no cached `frame` to update (maybe this is a speed issue?)
+				// Deviation: no cached `frame` to update
 			} break;
+			case OP_SUPER_INVOKE: {
+				ObjString* method = readString();
+				const uint8_t argCount = readByte();
+				ObjClass* superclass = pop().toObj()->to<ObjClass>();
+				if (!invokeMethod(superclass, method, argCount)) {
+					return InterpretResult::RuntimeError;
+				}
+				// Deviation: no cached `frame` to update
+			}break;
 			case OP_CLOSURE: {
 				ObjFunction* fn = readConstant().toObj()->toFunction();
 
@@ -521,7 +531,17 @@ InterpretResult VM::run()
 				ObjClass* child = peek(0).toObj()->to<ObjClass>();
 
 				child->methods.addAll(superclass.toObj()->to<ObjClass>()->methods);
-				CL_UNUSED(pop());  // superclass
+				CL_UNUSED(pop()); // superclass
+			} break;
+			case OP_GET_SUPER: {
+				ObjString* methodName = readString();
+				ObjClass* superclass = pop().toObj()->to<ObjClass>();
+
+				// Instead of using the instance's class like normal, bind the
+				// method to the superclass.
+				if (!bindMethod(superclass, methodName)) {
+					return InterpretResult::RuntimeError;
+				}
 			} break;
 			case OP_ADD:
 				if (isObjType(peek(0), ObjType::String) && isObjType(peek(1), ObjType::String)) {

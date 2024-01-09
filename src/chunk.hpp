@@ -25,6 +25,9 @@ enum OpCode : uint8_t
 	// Optimized function for method invocations.
 	OP_INVOKE,
 
+	// Optimized invocation of super method.
+	OP_SUPER_INVOKE,
+
 	OP_CLOSURE,
 	OP_CLOSE_UPVALUE,
 	OP_POP,
@@ -41,6 +44,7 @@ enum OpCode : uint8_t
 	OP_GET_PROPERTY,
 	OP_RETURN,
 	OP_CLASS,
+	OP_GET_SUPER,
 
 	// Applies inheritance to a class.
 	OP_INHERIT,

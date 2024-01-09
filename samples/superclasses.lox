@@ -2,14 +2,27 @@ class Parent {
     parentMethod() {
         print "Parent method";
     }
+
+    name() {
+        return "Parent";
+    }
 }
 
 class Child < Parent {
     childMethod() {
         print "Child method";
     }
+
+    parentName() {
+        return super.name();
+    }
+
+    name() {
+        return "Child";
+    }
 }
 
 var child = Child();
 child.childMethod();
 child.parentMethod();
+print child.parentName();

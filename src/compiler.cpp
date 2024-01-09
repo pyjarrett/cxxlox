@@ -58,6 +58,7 @@ enum class FunctionType
 // context or not.
 struct ClassCompiler {
 	ClassCompiler* enclosing = nullptr;
+	bool hasSuperclass = false;
 
 	ClassCompiler() = default;
 	CL_PROHIBIT_MOVE_AND_COPY(ClassCompiler);
@@ -185,6 +186,21 @@ struct Compiler {
 
 Compiler* Compiler::s_active = nullptr;
 ClassCompiler* Compiler::s_classCompiler = nullptr;
+
+///////////////////////////////////////////////////////////////////////////////
+// Token functions
+///////////////////////////////////////////////////////////////////////////////
+// Creates an appropriate token, using the given character literal.  The literal
+// will manage its own lifetime by being in the .string section of the
+// executable.
+static Token syntheticToken(const char* name)
+{
+	constexpr uint32_t kMaxSyntheticTokenLength = 1024u;
+	Token token;
+	token.start = name;
+	token.length = strnlen(name, kMaxSyntheticTokenLength);
+	return token;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Garbage collection
@@ -365,7 +381,7 @@ int32_t Compiler::addUpvalue(uint8_t index, bool isLocal)
 	// Check to see that this upvalue hasn't already been captured by this closure.
 	for (int32_t i = 0; i < upvalueCount; ++i) {
 		if (upvalues[i].index == index && upvalues[i].isLocal == isLocal) {
-			return upvalues[i].index;
+			return i;
 		}
 	}
 
@@ -442,6 +458,7 @@ void Compiler::addLocal(Token name)
 	Local* local = &locals[localCount++];
 	local->name = name;
 	local->depth = Local::kUninitialized;
+	local->captured = false;
 }
 
 void Compiler::declareVariable()
@@ -609,9 +626,16 @@ void Compiler::classDeclaration()
 			parser.error("A class cannot inherit from itself {} < {}");
 		}
 
+		// Create a scoped `super` local variable.  It is scoped so it can be
+		// overriden and used by as an upvalue in any descendant subclass.
+		beginScope();
+		addLocal(syntheticToken("super"));
+		defineVariable(0);
+
 		// Load the subclass name onto the stack.
 		getOrSetNamedVariable(className, false);
 		emitByte(OP_INHERIT);
+		classCompiler.hasSuperclass = true;
 	}
 
 	// Put class name back on the stack.
@@ -627,6 +651,11 @@ void Compiler::classDeclaration()
 
 	// Pop class name.
 	emitByte(OP_POP);
+
+	// End the context for `super`.
+	if (classCompiler.hasSuperclass) {
+		endScope();
+	}
 
 	s_classCompiler = s_classCompiler->enclosing;
 }
@@ -1108,6 +1137,37 @@ static void variable(Compiler* compiler, bool canAssign)
 	compiler->getOrSetNamedVariable(compiler->parser.previous, canAssign);
 }
 
+static void super_(Compiler* compiler, [[maybe_unused]] bool canAssign)
+{
+	Parser& parser = compiler->parser;
+
+	if (Compiler::s_classCompiler == nullptr) {
+		parser.error("Cannot use `super` outside of a class.");
+	}
+	else if (!Compiler::s_classCompiler->hasSuperclass) {
+		parser.error("Cannot use `super` in a class with no superclass.");
+	}
+
+	// `super` calls expect a `.` after them, you can't do anything with `super` by itself.
+	parser.consume(TokenType::Dot, "Expected '.' after `super`.");
+	parser.consume(TokenType::Identifier, "Expected super class method name.");
+	const uint8_t methodName = compiler->identifierConstant(&parser.previous);
+
+	compiler->getOrSetNamedVariable(syntheticToken("this"), false);
+
+	if (parser.match(TokenType::LeftParen)) {
+		// Direct call of a super method.
+		const uint8_t argCount = argumentList(compiler);
+		compiler->getOrSetNamedVariable(syntheticToken("super"), false);
+		compiler->emitBytes(OP_SUPER_INVOKE, methodName);
+		compiler->emitByte(argCount);
+	}
+	else {
+		compiler->getOrSetNamedVariable(syntheticToken("super"), false);
+		compiler->emitBytes(OP_GET_SUPER, methodName);
+	}
+}
+
 static void this_(Compiler* compiler, bool canAssign)
 {
 	if (!Compiler::s_classCompiler) {
@@ -1176,7 +1236,7 @@ static PrattRuleMap rules = {
 	{TokenType::Var, {nullptr, nullptr, PREC_NONE}},
 	{TokenType::Print, {nullptr, nullptr, PREC_NONE}},
 
-	{TokenType::Super, {nullptr, nullptr, PREC_NONE}},
+	{TokenType::Super, {super_, nullptr, PREC_NONE}},
 	{TokenType::This, {this_, nullptr, PREC_NONE}},
 	{TokenType::Nil, {literal, nullptr, PREC_NONE}},
 	{TokenType::True, {literal, nullptr, PREC_NONE}},
