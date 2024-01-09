@@ -83,10 +83,10 @@ struct Compiler {
 		// Allocate a local for use by the compiler.
 		Local* local = &locals[localCount++];
 		local->depth = 0;
+		local->captured = false;
 		if (type != FunctionType::Function) {
 			local->name.start = "this";
 			local->name.length = 4;
-
 		} else {
 			local->name.start = ""; // So the user can't refer to it.
 			local->name.length = 0;
@@ -169,7 +169,7 @@ struct Compiler {
 	int localCount = 0;
 	int scopeDepth = 0;
 
-	Upvalue upvalues[kUInt8Count];
+	Upvalue upvalues[kUInt8Count] {};
 
 	// The currently active compiler.  Keep this inside the Compiler class and
 	// don't have it affect the compilation itself, it's only used for tracking

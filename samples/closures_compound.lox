@@ -1,0 +1,22 @@
+fun foo() {
+    var a = 10;
+    var b = 20;
+
+    fun bar() {
+        fun qat() {
+            print "qat";
+            print a;
+        }
+
+        qat();
+        print "bar";
+        print a;
+    }
+
+    bar();
+    print "foo";
+    print a;
+    print b;
+}
+
+foo();

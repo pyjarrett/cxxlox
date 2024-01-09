@@ -314,7 +314,7 @@ void VM::closeUpvalues(Value* last)
 {
 	// Pop all open upvalues from the top of the upvalues list, to and
 	// including the given value.
-	while (openUpvalues && openUpvalues->location > last) {
+	while (openUpvalues && openUpvalues->location >= last) {
 		ObjUpvalue* current = openUpvalues;
 		current->closed = *current->location;
 		current->location = &current->closed;
