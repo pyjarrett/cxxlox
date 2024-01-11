@@ -99,7 +99,7 @@ void GC::garbageCollect()
 
 	markRoots();
 	traceReferences();
-//	strings.removeUnmarked();
+	strings.removeUnmarked();
 	sweep();
 
 	nextGC = bytesAllocated * kGCHeapGrowFactor;
@@ -161,6 +161,16 @@ void GC::sweep()
 			freeObj(garbage);
 		}
 	}
+}
+
+void GC::intern(ObjString* obj)
+{
+	strings.set(obj, Value::makeNil());
+}
+
+ObjString* GC::lookup(const char* chars, uint32_t length, uint32_t hash) const
+{
+	return strings.findKey(chars, length, hash);
 }
 
 } // namespace cxxlox

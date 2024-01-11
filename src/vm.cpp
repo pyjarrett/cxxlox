@@ -705,16 +705,6 @@ void VM::markRoots()
 	markObject(asObj(initString));
 }
 
-void VM::intern(ObjString* obj)
-{
-	strings.set(obj, Value::makeNil());
-}
-
-ObjString* VM::lookup(const char* chars, uint32_t length, uint32_t hash) const
-{
-	return strings.findKey(chars, length, hash);
-}
-
 InterpretResult interpret(const std::string& source)
 {
 	return VM::instance().interpret(source);

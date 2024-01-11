@@ -80,9 +80,6 @@ struct VM final {
 
 	void markRoots();
 
-	void intern(ObjString* str);
-	ObjString* lookup(const char* chars, uint32_t length, uint32_t hash) const;
-
 private:
 	VM();
 	~VM();
@@ -104,9 +101,6 @@ private:
 	/// A pointer to the element just past the current element.  This is where
 	/// the next element will be pushed.
 	Value* stackTop = &stack[0];
-
-	/// Interned strings.
-	Table strings;
 
 	/// Global variables.
 	Table globals;

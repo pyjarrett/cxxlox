@@ -186,7 +186,7 @@ bool isObjType(Value value, ObjType type)
 	str->length = length;
 	str->hash = hash;
 	VM::instance().push(makeValue(str));
-	VM::instance().intern(str);
+	GC::instance().intern(str);
 	CL_UNUSED(VM::instance().pop());
 	return str;
 }
@@ -202,7 +202,7 @@ ObjString* copyString(const char* chars)
 ObjString* copyString(const char* chars, uint32_t length)
 {
 	const uint32_t hash = hashString(chars, length);
-	if (ObjString* interned = VM::instance().lookup(chars, length, hash)) {
+	if (ObjString* interned = GC::instance().lookup(chars, length, hash)) {
 		return interned;
 	}
 
@@ -217,7 +217,7 @@ ObjString* copyString(const char* chars, uint32_t length)
 ObjString* takeString(char* chars, uint32_t length)
 {
 	const uint32_t hash = hashString(chars, length);
-	if (ObjString* interned = VM::instance().lookup(chars, length, hash)) {
+	if (ObjString* interned = GC::instance().lookup(chars, length, hash)) {
 		delete[] chars;
 		return interned;
 	}

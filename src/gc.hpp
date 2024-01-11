@@ -27,8 +27,8 @@ struct GC {
 	void addUsedMemory(int64_t bytes);
 
 	// String interning.
-//	void intern(ObjString* str);
-//	ObjString* lookup(const char* chars, uint32_t length, uint32_t hash) const;
+	void intern(ObjString* str);
+	ObjString* lookup(const char* chars, uint32_t length, uint32_t hash) const;
 
 private:
 	// Garbage collection.
@@ -37,6 +37,9 @@ private:
 	void sweep();
 
 	Obj* objects = nullptr;
+
+	/// Interned strings.
+	Table strings;
 
 public:
 	Vector<Obj*, false> grayStack;
