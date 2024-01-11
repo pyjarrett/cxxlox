@@ -16,8 +16,7 @@ static void freeObj(Obj* obj)
 static void freeObj(Obj* obj)
 {
 #ifdef DEBUG_LOG_GC
-	std::cout << "Freeing " << std::hex << obj << " of type " << objTypeToString(obj->type) << '\n';
-	std::cout << "    -> " << obj << '\n';
+	std::cout << "Freeing " << std::hex << ((void*)obj) << " of type " << objTypeToString(obj->type) << '\n';
 #endif
 
 	switch (obj->type) {
@@ -73,7 +72,7 @@ void GC::printTracked()
 	std::cout << "Tracked Objects\n";
 	Obj* obj = objects;
 	while (obj) {
-		std::cout << " @ " << std::hex << ((void*)obj) << " OBJ: " << obj << '\n';
+		std::cout << " @ " << std::hex << ((void*)obj) << ' ' << objTypeToString(obj->type) << " OBJ: " << obj << '\n';
 		obj = obj->next;
 	}
 #endif
