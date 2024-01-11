@@ -3,6 +3,7 @@
 #include "chunk.hpp"
 #include "common.hpp"
 #include "compiler.hpp"
+#include "gc.hpp"
 #include "memory.hpp"
 #include "object_allocator.hpp"
 
@@ -29,43 +30,6 @@ static Value clockNative(int argCount, Value* args)
 	return Value::makeNumber(dt.count() / 1'000.0);
 }
 
-static void freeObj(Obj* obj)
-{
-#ifdef DEBUG_LOG_GC
-	std::cout << "Freeing " << std::hex << obj << " of type " << objTypeToString(obj->type) << '\n';
-	std::cout << "    -> " << obj << '\n';
-#endif
-
-	switch (obj->type) {
-		case ObjType::BoundMethod: {
-			freeObj<ObjBoundMethod>(obj);
-		} break;
-		case ObjType::String: {
-			freeObj<ObjString>(obj);
-		} break;
-		case ObjType::Closure: {
-			freeObj<ObjClosure>(obj);
-		} break;
-		case ObjType::Class: {
-			freeObj<ObjClass>(obj);
-		} break;
-		case ObjType::Instance:
-			freeObj<ObjInstance>(obj);
-			break;
-		case ObjType::Function: {
-			freeObj<ObjFunction>(obj);
-		} break;
-		case ObjType::Native: {
-			freeObj<ObjNative>(obj);
-		} break;
-		case ObjType::Upvalue: {
-			freeObj<ObjUpvalue>(obj);
-		} break;
-		default:
-			CL_FATAL("Unknown object type.");
-	}
-}
-
 /// Global VM, to prevent from needing to pass one to every function call.
 /* static */ VM& VM::instance()
 {
@@ -81,7 +45,6 @@ VM::VM()
 VM::~VM()
 {
 	initString = nullptr;
-	freeObjects();
 }
 
 void VM::reset()
@@ -90,6 +53,7 @@ void VM::reset()
 	// Ugly, but I don't really want to expose a copy or move constructor, and
 	// there's a bunch of arrays.
 	this->~VM();
+	GC::instance().freeObjects();
 	new (this) VM();
 }
 
@@ -351,17 +315,6 @@ bool VM::bindMethod(ObjClass* klass, ObjString* name)
 	CL_UNUSED(pop());
 	push(makeValue(boundMethod));
 	return true;
-}
-
-void VM::freeObjects()
-{
-	Obj* obj = objects;
-	while (obj) {
-		Obj* next = obj->next;
-		freeObj(obj);
-		obj = next;
-	}
-	grayStack.clear();
 }
 
 void VM::loadNativeFunctions()
@@ -730,43 +683,6 @@ InterpretResult VM::interpret(const std::string& source)
 	return run();
 }
 
-void VM::garbageCollect()
-{
-#ifdef DEBUG_LOG_GC
-	std::cout << "-- gc start\n";
-	int64_t bytesBefore = int64_t(bytesAllocated);
-#endif
-
-	markRoots();
-	traceReferences();
-	strings.removeUnmarked();
-	sweep();
-
-	nextGC = bytesAllocated * kGCHeapGrowFactor;
-
-#ifdef DEBUG_LOG_GC
-	std::cout << "-- gc end\n";
-	std::cout << "Collected " << (bytesBefore - bytesAllocated) << " bytes " << bytesAllocated
-			  << " remain, next collect is at " << nextGC << '\n';
-#endif
-}
-
-bool VM::wantsToGarbageCollect() const
-{
-	return bytesAllocated > nextGC;
-}
-
-void VM::addUsedMemory(int64_t bytes)
-{
-	bytesAllocated += bytes;
-}
-
-void VM::track(Obj* obj)
-{
-	obj->next = objects;
-	objects = obj;
-}
-
 void VM::markRoots()
 {
 	// Everything in the stack.
@@ -787,43 +703,6 @@ void VM::markRoots()
 	globals.mark();
 	markActiveCompilers();
 	markObject(asObj(initString));
-}
-
-// Expand outward from the roots to trace and find all referenced objects.
-void VM::traceReferences()
-{
-	while (grayStack.count() > 0) {
-		Obj* obj = grayStack.pop();
-		blackenObj(obj);
-	}
-}
-
-// Garbage collection pass.
-void VM::sweep()
-{
-	Obj* previous = nullptr;
-	Obj* current = objects;
-	while (current != nullptr) {
-		if (current->isMarked) {
-			// Reset status and move along.
-			current->isMarked = false;
-			previous = current;
-			current = current->next;
-		} else {
-			// Wasn't referenced (white node), so remove.
-			Obj* garbage = current;
-			current = current->next;
-
-			if (previous) {
-				// Interior or tail node.
-				previous->next = current;
-			} else {
-				// Reattach list head.
-				objects = current;
-			}
-			freeObj(garbage);
-		}
-	}
 }
 
 void VM::intern(ObjString* obj)

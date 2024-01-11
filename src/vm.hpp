@@ -5,7 +5,6 @@
 #include "table.hpp"
 #include "value.hpp"
 #include "vector.hpp"
-
 #include <string>
 
 namespace cxxlox {
@@ -79,15 +78,10 @@ struct VM {
 
 	[[nodiscard]] InterpretResult interpret(const std::string& source);
 
-	void garbageCollect();
+	void markRoots();
 
-	[[nodiscard]] bool wantsToGarbageCollect() const;
-	void addUsedMemory(int64_t bytes);
-	void track(Obj* obj);
 	void intern(ObjString* str);
 	ObjString* lookup(const char* chars, uint32_t length, uint32_t hash) const;
-
-	Vector<Obj*, false> grayStack;
 
 private:
 	VM();
@@ -97,12 +91,6 @@ private:
 	[[nodiscard]] InterpretResult run();
 
 	void resetStack();
-	void freeObjects();
-
-	// Garbage collection.
-	void markRoots();
-	void traceReferences();
-	void sweep();
 
 	void loadNativeFunctions();
 
@@ -116,9 +104,6 @@ private:
 	/// A pointer to the element just past the current element.  This is where
 	/// the next element will be pushed.
 	Value* stackTop = &stack[0];
-
-	/// Objects tracked for garbage collection.
-	Obj* objects = nullptr;
 
 	/// Interned strings.
 	Table strings;

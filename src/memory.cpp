@@ -1,5 +1,6 @@
 #include "memory.hpp"
 
+#include "gc.hpp"
 #include "object.hpp"
 #include "value.hpp"
 #include "vm.hpp"
@@ -10,7 +11,7 @@ namespace cxxlox {
 
 void* realloc(void* pointer, size_t oldSize, size_t newSize)
 {
-	VM::instance().addUsedMemory(int64_t(newSize) - int64_t(oldSize));
+	GC::instance().addUsedMemory(int64_t(newSize) - int64_t(oldSize));
 
 	if (newSize == 0) {
 		std::free(pointer);
@@ -18,10 +19,10 @@ void* realloc(void* pointer, size_t oldSize, size_t newSize)
 	}
 
 #ifdef DEBUG_STRESS_GC
-	VM::instance().garbageCollect();
+	GC::instance().garbageCollect();
 #else
-	if (VM::instance().wantsToGarbageCollect()) {
-		VM::instance().garbageCollect();
+	if (GC::instance().wantsToGarbageCollect()) {
+		GC::instance().garbageCollect();
 	}
 #endif
 
@@ -54,7 +55,7 @@ void markObject(Obj* obj)
 	std::cout << '\n';
 #endif
 	obj->isMarked = true;
-	VM::instance().grayStack.push(obj);
+	GC::instance().grayStack.push(obj);
 }
 
 // Trace references within the given object.

@@ -4,6 +4,7 @@ set(CXXLOX_SRCS
     common.cpp
     compiler.cpp
     debug.cpp
+    gc.cpp
     memory.cpp
     object.cpp
     object_allocator.cpp
@@ -24,6 +25,7 @@ set(CXXLOX_HEADERS
     common.hpp
     compiler.hpp
     debug.hpp
+    gc.hpp
     memory.hpp
     object.hpp
     object_allocator.hpp
