@@ -80,7 +80,6 @@ void GC::printTracked()
 
 void GC::freeObjects()
 {
-	printTracked();
 	Obj* obj = objects;
 	while (obj) {
 		Obj* next = obj->next;
@@ -93,7 +92,6 @@ void GC::freeObjects()
 
 void GC::garbageCollect()
 {
-	printTracked();
 #ifdef DEBUG_LOG_GC
 	std::cout << "-- gc start\n";
 	int64_t bytesBefore = int64_t(bytesAllocated);
@@ -111,7 +109,6 @@ void GC::garbageCollect()
 	std::cout << "Collected " << (bytesBefore - bytesAllocated) << " bytes " << bytesAllocated
 			  << " remain, next collect is at " << nextGC << '\n';
 #endif
-	printTracked();
 }
 
 bool GC::wantsToGarbageCollect() const
