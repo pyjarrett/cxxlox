@@ -22,7 +22,7 @@ enum class InterpretResult
 
 // An interpreted function call frame.  Native functions called from Lox do
 // not use this.
-struct CallFrame {
+struct CallFrame final {
 	ObjClosure* closure = nullptr;
 
 	// The **next** instruction to be executed.
@@ -35,7 +35,7 @@ struct CallFrame {
 };
 static_assert(sizeof(CallFrame) == 24);
 
-struct VM {
+struct VM final {
 	static constexpr int32_t kFramesMax = 64;
 	static constexpr int32_t kStackMax = kFramesMax * kUInt8Count;
 
@@ -119,12 +119,6 @@ private:
 	ObjString* initString = nullptr;
 
 	bool loadedNativeFunctions = false;
-
-	// Garbage collector tracking and tuning.
-	int64_t bytesAllocated = 0;
-	int64_t nextGC = 128;
-
-	static inline constexpr int64_t kGCHeapGrowFactor = 2;
 };
 
 InterpretResult interpret(const std::string& source);
